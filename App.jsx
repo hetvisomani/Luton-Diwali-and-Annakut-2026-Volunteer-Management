@@ -18,13 +18,11 @@ import {
 } from 'firebase/firestore';
 import { 
   Calendar, Clock, MapPin, Users, Plus, CheckCircle, 
-  XCircle, Filter, Shield, UserCheck, AlertTriangle, 
-  Search, Sun, Moon, ChevronLeft, ChevronRight, User, 
-  Settings, RefreshCw, Zap, Phone, Mail, Award, Check, Sparkles,
-  ClipboardList, Wand2, AlertCircle, ArrowRight, Layers, FileSpreadsheet, CheckSquare
+  XCircle, Shield, AlertTriangle, Search, Sun, Moon,
+  Phone, Mail, Check, Sparkles, ClipboardList, Wand2,
+  AlertCircle, Edit2, Trash2, UserCheck, X
 } from 'lucide-react';
 
-// --- Firebase Configuration & Initialization ---
 const firebaseConfig = typeof __firebase_config !== 'undefined' 
   ? JSON.parse(__firebase_config) 
   : {
@@ -41,115 +39,89 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'diwali-mandir-seva-app';
 
-// Diwali Mandir Seva Departments
 const SHIFT_ROLES = [
   'No preference',
-  'Annakut setup/windup',
+  'Annakut Setup/Windup',
   'AV',
-  'Catering /food stalls'/  'Shoe Stall / Footwear',
-  'Traffic & Parking',
-  'VIP & Reception',
-  'Crowd Management & Security',
-  'Cleanup & Maintenance'
+  'Catering/Food stalls',
+  'Finance',
+  'Housekeeping',
+  'Mandir Shop',
+  'Outreach',
+  'Parking',
+  'Photography/Videography',
+  'Security',
+  'Sabha Vyavestha',
+  'Sampark',
+  'Welcome',
+  'Flow management',
+  'Volunteer management'
 ];
 
-// 2 Key Festival Days
+const MANDAL_OPTIONS = [
+  'Sanyukta Mandal (ages 36+)',
+  'Sanyukta Mahila Mandal (ages 36+)',
+  'Yuvak Mandal (ages 22-35)',
+  'Yuvati Mandal (ages 22-35)',
+  'Kishore Mandal (year 9 - age 21)',
+  'Kishori Mandal (year 9 - age 21)'
+];
+
 const FESTIVAL_DAYS = [
   { key: '2026-11-08', label: 'Diwali Day (Day 1)', dateStr: 'Sun, Nov 8' },
-  { key: '2026-11-09', label: 'Hindu New Year / Annakut (Day 2)', dateStr: 'Mon, Nov 9' }
+  { key: '2026-11-10', label: 'Hindu New Year / Annakut (Day 2)', dateStr: 'Tue, Nov 10' }
 ];
 
-const TIME_SLOTS = [
-  '07:00 - 10:00',
-  '10:00 - 13:00',
-  '13:00 - 16:00',
-  '16:00 - 19:00',
-  '19:00 - 22:00'
+const TIME_AVAILABILITY_SLOTS = [
+  'All day',
+  '9am to 1pm',
+  '1pm to 5pm',
+  '5pm to 10pm',
+  'Other'
 ];
 
-// Seed Data for initial shifts
 const SEED_SHIFTS = [
   {
     title: 'Annakut Display & Prasadam Setup',
-    role: 'Prashad & Annakut',
+    role: 'Annakut Setup/Windup',
     date: '2026-11-08',
-    startTime: '07:00',
-    endTime: '10:00',
+    startTime: '09:00',
+    endTime: '13:00',
     location: 'Main Shrine Hall',
     capacity: 12,
-    status: 'Open',
-    urgent: true,
-    notes: 'Help arrange food offerings and pack mahaprasad boxes.',
     assignedVolunteers: [],
     checkedInVolunteers: []
   },
   {
-    title: 'Diwali Evening Shoe Counter',
-    role: 'Shoe Stall / Footwear',
+    title: 'Diwali Evening Welcome & Flow',
+    role: 'Welcome',
     date: '2026-11-08',
-    startTime: '16:00',
-    endTime: '19:00',
-    location: 'Outer Courtyard Counters',
+    startTime: '17:00',
+    endTime: '22:00',
+    location: 'Main Entrance Foyer',
     capacity: 15,
-    status: 'Open',
-    urgent: true,
-    notes: 'Footwear organizing during peak evening crowd.',
     assignedVolunteers: [],
     checkedInVolunteers: []
   },
   {
-    title: 'Diya Lighting & Decoration',
-    role: 'Diya & Decoration',
+    title: 'Parking & Traffic Guidance - Peak Hours',
+    role: 'Parking',
     date: '2026-11-08',
-    startTime: '13:00',
-    endTime: '16:00',
-    location: 'Temple Gardens & Walkway',
+    startTime: '17:00',
+    endTime: '22:00',
+    location: 'Outer Car Park',
     capacity: 10,
-    status: 'Open',
-    urgent: false,
-    notes: 'Oil filling and diya placement along main pathways.',
     assignedVolunteers: [],
     checkedInVolunteers: []
   },
   {
-    title: 'Traffic & Parking Control - Peak',
-    role: 'Traffic & Parking',
-    date: '2026-11-08',
-    startTime: '16:00',
-    endTime: '19:00',
-    location: 'Main Parking Lot',
-    capacity: 12,
-    status: 'Open',
-    urgent: true,
-    notes: 'Direct incoming vehicles safely into parking bays.',
-    assignedVolunteers: [],
-    checkedInVolunteers: []
-  },
-  {
-    title: 'Annakut Grand Darshan Crowd Control',
-    role: 'Crowd Management & Security',
-    date: '2026-11-09',
-    startTime: '10:00',
+    title: 'New Year Sabha Vyavestha & Seating',
+    role: 'Sabha Vyavestha',
+    date: '2026-11-10',
+    startTime: '09:00',
     endTime: '13:00',
-    location: 'Main Prayer Hall Queue',
+    location: 'Assembly Hall',
     capacity: 15,
-    status: 'Open',
-    urgent: true,
-    notes: 'Manage queues and assist elderly visitors.',
-    assignedVolunteers: [],
-    checkedInVolunteers: []
-  },
-  {
-    title: 'Kitchen Mahaprasad Preparation',
-    role: 'Kitchen & Catering',
-    date: '2026-11-09',
-    startTime: '07:00',
-    endTime: '10:00',
-    location: 'Mandir Community Kitchen',
-    capacity: 10,
-    status: 'Open',
-    urgent: false,
-    notes: 'Food packing and serving support for New Year feast.',
     assignedVolunteers: [],
     checkedInVolunteers: []
   }
@@ -158,35 +130,40 @@ const SEED_SHIFTS = [
 export default function App() {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(true);
-  const [activeTab, setActiveTab] = useState('manager'); // 'availabilityForm', 'manager', 'roster', 'gaps'
+  const [activeTab, setActiveTab] = useState('manager'); 
   const [darkMode, setDarkMode] = useState(false);
 
-  // Firestore Data State
   const [shifts, setShifts] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form Submission State (For Volunteers)
+  // Volunteer Submission Form State
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    preferences: [SHIFT_ROLES[0], SHIFT_ROLES[1]],
+    mandal: MANDAL_OPTIONS[0],
+    preferences: [SHIFT_ROLES[0]],
     availability: {
-      '2026-11-08': ['16:00 - 19:00'],
-      '2026-11-09': ['10:00 - 13:00']
+      '2026-11-08': ['All day'],
+      '2026-11-10': ['9am to 1pm']
+    },
+    otherTimeText: {
+      '2026-11-08': '',
+      '2026-11-10': ''
     },
     notes: ''
   });
 
-  // Filters & UI State
-  const [filterRole, setFilterRole] = useState('All');
-  const [filterDate, setFilterDate] = useState('2026-11-08');
+  // UI & Search Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterDate, setFilterDate] = useState('2026-11-08');
   const [notification, setNotification] = useState(null);
-  const [selectedShiftForDetails, setSelectedShiftForDetails] = useState(null);
+  
+  // Modals state
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
+  const [selectedVolunteerForInspection, setSelectedVolunteerForInspection] = useState(null);
 
   const showToast = (message, type = 'info') => {
     setNotification({ message, type });
@@ -214,7 +191,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Sync Shifts and Volunteer Submissions
   useEffect(() => {
     if (!user) return;
 
@@ -248,7 +224,7 @@ export default function App() {
       for (const s of SEED_SHIFTS) {
         await addDoc(shiftsCol, s);
       }
-      showToast("Initial Diwali Seva shifts created!", "success");
+      showToast("Default Diwali Seva shifts created!", "success");
     } catch (e) {
       console.error(e);
     }
@@ -273,8 +249,10 @@ export default function App() {
         name: '',
         phone: '',
         email: '',
+        mandal: MANDAL_OPTIONS[0],
         preferences: [SHIFT_ROLES[0]],
         availability: {},
+        otherTimeText: {},
         notes: ''
       });
       setActiveTab('manager');
@@ -306,20 +284,27 @@ export default function App() {
           submissionId: submission.id,
           name: submission.name,
           phone: submission.phone,
-          email: submission.email
+          mandal: submission.mandal
         }
       ];
 
       await updateDoc(shiftRef, {
-        assignedVolunteers: updatedAssigned,
-        status: updatedAssigned.length >= shift.capacity ? 'Filled' : 'Open'
+        assignedVolunteers: updatedAssigned
       });
 
-      // Update submission record
       const subRef = doc(db, 'artifacts', appId, 'public', 'data', 'submissions', submission.id);
       const currentAssignedShifts = submission.assignedShifts || [];
       await updateDoc(subRef, {
-        assignedShifts: [...currentAssignedShifts, { shiftId: shift.id, title: shift.title, role: shift.role, time: `${shift.startTime}-${shift.endTime}` }]
+        assignedShifts: [
+          ...currentAssignedShifts, 
+          { 
+            shiftId: shift.id, 
+            title: shift.title, 
+            role: shift.role, 
+            date: shift.date,
+            time: `${shift.startTime}-${shift.endTime}` 
+          }
+        ]
       });
 
       showToast(`Assigned ${submission.name} to ${shift.title}!`, "success");
@@ -335,10 +320,12 @@ export default function App() {
 
     try {
       const updatedAssigned = (shift.assignedVolunteers || []).filter(v => v.submissionId !== submissionId);
+      const updatedCheckedIn = (shift.checkedInVolunteers || []).filter(id => id !== submissionId);
+
       const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', shiftId);
       await updateDoc(shiftRef, {
         assignedVolunteers: updatedAssigned,
-        status: updatedAssigned.length >= shift.capacity ? 'Filled' : 'Open'
+        checkedInVolunteers: updatedCheckedIn
       });
 
       if (submissionId) {
@@ -358,6 +345,29 @@ export default function App() {
     }
   };
 
+  const toggleCheckInVolunteer = async (shiftId, submissionId) => {
+    const shift = shifts.find(s => s.id === shiftId);
+    if (!shift) return;
+
+    const checkedIn = shift.checkedInVolunteers || [];
+    const isCheckedIn = checkedIn.includes(submissionId);
+
+    const updatedCheckedIn = isCheckedIn
+      ? checkedIn.filter(id => id !== submissionId)
+      : [...checkedIn, submissionId];
+
+    try {
+      const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', shiftId);
+      await updateDoc(shiftRef, {
+        checkedInVolunteers: updatedCheckedIn
+      });
+      showToast(isCheckedIn ? "Check-in canceled" : "Volunteer checked in!", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Could not update check-in status", "error");
+    }
+  };
+
   const handleRunAutoMatch = async () => {
     let matchCount = 0;
 
@@ -369,8 +379,9 @@ export default function App() {
         const times = avail[dateKey];
         if (!times || times.length === 0) continue;
 
-        // Find candidate shifts
         for (const targetRole of preferredRoles) {
+          if (targetRole === 'No preference') continue;
+
           const candidateShifts = shifts.filter(s => 
             s.date === dateKey && 
             s.role === targetRole && 
@@ -399,28 +410,25 @@ export default function App() {
     const analysis = [];
 
     FESTIVAL_DAYS.forEach(day => {
-      TIME_SLOTS.forEach(slot => {
-        const [start] = slot.split(' - ');
-        
-        SHIFT_ROLES.forEach(role => {
-          const matchingShifts = shifts.filter(s => s.date === day.key && s.role === role && s.startTime === start);
-          const totalNeeded = matchingShifts.reduce((acc, curr) => acc + curr.capacity, 0);
-          const totalAssigned = matchingShifts.reduce((acc, curr) => acc + (curr.assignedVolunteers?.length || 0), 0);
-          const gap = totalNeeded - totalAssigned;
+      SHIFT_ROLES.forEach(role => {
+        if (role === 'No preference') return;
 
-          if (totalNeeded > 0 || gap > 0) {
-            analysis.push({
-              date: day.key,
-              dayLabel: day.label,
-              slot,
-              role,
-              needed: totalNeeded,
-              assigned: totalAssigned,
-              gap: Math.max(0, gap),
-              shifts: matchingShifts
-            });
-          }
-        });
+        const matchingShifts = shifts.filter(s => s.date === day.key && s.role === role);
+        const totalNeeded = matchingShifts.reduce((acc, curr) => acc + curr.capacity, 0);
+        const totalAssigned = matchingShifts.reduce((acc, curr) => acc + (curr.assignedVolunteers?.length || 0), 0);
+        const gap = totalNeeded - totalAssigned;
+
+        if (totalNeeded > 0 || gap > 0) {
+          analysis.push({
+            date: day.key,
+            dayLabel: day.label,
+            role,
+            needed: totalNeeded,
+            assigned: totalAssigned,
+            gap: Math.max(0, gap),
+            shifts: matchingShifts
+          });
+        }
       });
     });
 
@@ -432,7 +440,7 @@ export default function App() {
   }, [gapAnalysis]);
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-orange-50/40 text-slate-800'} transition-colors duration-200`}>
+    <div className={`min-h-screen ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-amber-50/30 text-slate-800'} transition-colors duration-200`}>
       
       {/* Toast Notification */}
       {notification && (
@@ -449,7 +457,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Header Bar */}
+      {/* Main Header */}
       <header className={`sticky top-0 z-30 border-b ${darkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-amber-200'} backdrop-blur-md`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -460,11 +468,10 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <h1 className="font-bold text-lg leading-tight tracking-tight">Diwali Mandir Seva Portal</h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-1"></span>
-                  Diwali & New Year 2026
+                  Nov 8 & Nov 10
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">60+ Sevak Scheduling, Availability & Gap Manager</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">60+ Volunteer Scheduling, Department Rota & Live Check-in</p>
             </div>
           </div>
 
@@ -489,10 +496,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Container & Tab Navigation */}
+      {/* Navigation Tabs */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        
-        {/* Navigation Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 pb-3">
           <div className="flex items-center gap-2 bg-slate-200/60 dark:bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
             <button
@@ -502,7 +507,7 @@ export default function App() {
               }`}
             >
               <ClipboardList className="w-4 h-4" />
-              Sevak Signup Form (Shareable)
+              Sevak Form (Shareable Link)
             </button>
 
             {isAdmin && (
@@ -514,7 +519,7 @@ export default function App() {
                   }`}
                 >
                   <Users className="w-4 h-4" />
-                  Management & Auto-Assign ({submissions.length})
+                  Management & Alignment ({submissions.length})
                 </button>
 
                 <button
@@ -534,7 +539,7 @@ export default function App() {
                   }`}
                 >
                   <Calendar className="w-4 h-4" />
-                  Master Department Rota
+                  Master Department Rota & Check-In
                 </button>
               </>
             )}
@@ -551,7 +556,7 @@ export default function App() {
           )}
         </div>
 
-        {/* TAB 1: VOLUNTEER AVAILABILITY FORM (SHAREABLE) */}
+        {}
         {activeTab === 'availabilityForm' && (
           <div className="max-w-2xl mx-auto space-y-6">
             <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-amber-200'} shadow-lg space-y-4`}>
@@ -559,7 +564,7 @@ export default function App() {
                 <span className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">Diwali & Annakut 2026</span>
                 <h2 className="text-xl font-bold mt-1">Sevak Availability & Department Preference Form</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Please submit your availability and preferred Seva departments. The Seva Coordination Team will align your schedule and place you into the master department rota.
+                  Please submit your availability, Mandal, and preferred Seva departments.
                 </p>
               </div>
 
@@ -589,11 +594,25 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Preference Selection */}
+                {/* Mandal Selection */}
                 <div>
-                  <label className="block font-bold mb-1">Preferred Seva Departments (Select Top Preferences)</label>
+                  <label className="block font-bold mb-1">Mandal Category *</label>
+                  <select
+                    value={formData.mandal}
+                    onChange={(e) => setFormData({ ...formData, mandal: e.target.value })}
+                    className={`w-full p-3 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none focus:ring-2 focus:ring-orange-500`}
+                  >
+                    {MANDAL_OPTIONS.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Seva Preferences */}
+                <div>
+                  <label className="block font-bold mb-1">Preferred Seva Departments (Select Preferences)</label>
                   <p className="text-[11px] text-slate-500 mb-2">Check all departments you are happy to serve in.</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
                     {SHIFT_ROLES.map(role => {
                       const isSelected = formData.preferences.includes(role);
                       return (
@@ -622,8 +641,8 @@ export default function App() {
 
                 {/* Availability Matrix */}
                 <div>
-                  <label className="block font-bold mb-1">Time Availability Matrix *</label>
-                  <p className="text-[11px] text-slate-500 mb-3">Select time windows when you are free on-site at the Mandir.</p>
+                  <label className="block font-bold mb-1">Time Availability *</label>
+                  <p className="text-[11px] text-slate-500 mb-3">Select the time slots you are free for Seva on each day.</p>
 
                   <div className="space-y-4">
                     {FESTIVAL_DAYS.map(day => (
@@ -634,14 +653,14 @@ export default function App() {
                         </div>
 
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {TIME_SLOTS.map(slot => {
-                            const isAvailable = (formData.availability[day.key] || []).includes(slot);
+                          {TIME_AVAILABILITY_SLOTS.map(slot => {
+                            const dayAvail = formData.availability[day.key] || [];
+                            const isAvailable = dayAvail.includes(slot);
                             return (
                               <button
                                 type="button"
                                 key={slot}
                                 onClick={() => {
-                                  const dayAvail = formData.availability[day.key] || [];
                                   const updated = isAvailable
                                     ? dayAvail.filter(s => s !== slot)
                                     : [...dayAvail, slot];
@@ -661,16 +680,33 @@ export default function App() {
                             );
                           })}
                         </div>
+
+                        {/* "Other" custom write-in field */}
+                        {(formData.availability[day.key] || []).includes('Other') && (
+                          <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                            <label className="block text-[11px] font-bold text-slate-500 mb-1">Specify Other Time Window:</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Free 2pm to 6pm only"
+                              value={formData.otherTimeText[day.key] || ''}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                otherTimeText: { ...formData.otherTimeText, [day.key]: e.target.value }
+                              })}
+                              className={`w-full p-2 text-xs rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'} outline-none`}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1">Special Notes / Experience / Constraints</label>
+                  <label className="block font-bold mb-1">Notes / Special Requests</label>
                   <textarea
                     rows="2"
-                    placeholder="e.g. First aid certified, available for heavy lifting, or need early departure for family..."
+                    placeholder="e.g. Serving alongside spouse, heavy lifting capacity, late arrival..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     className={`w-full p-3 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none focus:ring-2 focus:ring-orange-500`}
@@ -689,7 +725,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: COORDINATOR MANAGEMENT & AUTO-ASSIGN */}
+        {}
         {activeTab === 'manager' && (
           <div className="space-y-6">
             <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-amber-200'} shadow-sm flex flex-col md:flex-row items-center justify-between gap-4`}>
@@ -699,7 +735,7 @@ export default function App() {
                   Volunteer Submissions & Rota Alignment ({submissions.length} Sevaks)
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Review submitted volunteer preferences and assign them directly into required department time shifts.
+                  Click on any volunteer card to view, edit, or delete their specific assigned rota shifts.
                 </p>
               </div>
 
@@ -708,7 +744,7 @@ export default function App() {
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search volunteer name or department..."
+                    placeholder="Search volunteer, phone, or mandal..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`}
@@ -720,7 +756,10 @@ export default function App() {
             {/* Volunteer Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {submissions
-                .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                .filter(s => 
+                  s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                  (s.mandal && s.mandal.toLowerCase().includes(searchQuery.toLowerCase()))
+                )
                 .map((sub) => {
                   const assignedList = sub.assignedShifts || [];
                   return (
@@ -729,16 +768,20 @@ export default function App() {
                       className={`p-4 rounded-3xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-amber-100'} shadow-sm space-y-3 flex flex-col justify-between`}
                     >
                       <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-sm">{sub.name}</h3>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            assignedList.length > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                          }`}>
-                            {assignedList.length > 0 ? `${assignedList.length} Rota Shifts` : 'Unassigned'}
-                          </span>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-bold text-sm">{sub.name}</h3>
+                            <p className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">{sub.mandal}</p>
+                          </div>
+                          <button
+                            onClick={() => setSelectedVolunteerForInspection(sub)}
+                            className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200 hover:bg-orange-200 flex items-center gap-1"
+                          >
+                            <Edit2 className="w-3 h-3" /> Manage Shifts ({assignedList.length})
+                          </button>
                         </div>
 
-                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                           <Phone className="w-3 h-3 text-slate-400" /> {sub.phone}
                         </p>
 
@@ -768,7 +811,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Manual Assignment Action Button */}
+                      {/* Quick Shift Assignment dropdown */}
                       <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
                         <p className="text-[10px] font-bold text-slate-400 uppercase">Quick Assign to Open Shift</p>
                         <select
@@ -785,7 +828,7 @@ export default function App() {
                             .filter(s => (s.assignedVolunteers || []).length < s.capacity)
                             .map(s => (
                               <option key={s.id} value={s.id}>
-                                {s.date === '2026-11-08' ? 'Diwali' : 'NY'} | {s.role} ({s.startTime}-{s.endTime})
+                                {s.date === '2026-11-08' ? 'Diwali' : 'New Year'} | {s.role} ({s.startTime}-{s.endTime})
                               </option>
                             ))}
                         </select>
@@ -797,7 +840,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: GAPS & DEPARTMENT DEMAND HEATMAP */}
+        {}
         {activeTab === 'gaps' && (
           <div className="space-y-6">
             <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-amber-200'} shadow-sm`}>
@@ -806,7 +849,7 @@ export default function App() {
                 Department Headcount Demand & Gap Analysis
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Real-time monitor flagging unfilled volunteer slots across all departments and time slots for Diwali and Hindu New Year.
+                Real-time monitor flagging unfilled volunteer slots across all departments for Diwali and Hindu New Year.
               </p>
             </div>
 
@@ -826,9 +869,6 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-xs px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800">
                           {item.dayLabel}
-                        </span>
-                        <span className="font-semibold text-xs text-slate-500 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-orange-500" /> {item.slot}
                         </span>
                       </div>
                       <h3 className="font-bold text-base mt-1">{item.role}</h3>
@@ -857,7 +897,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: MASTER DEPARTMENT ROTA */}
+        {}
         {activeTab === 'roster' && (
           <div className="space-y-6">
             <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-amber-200'} shadow-sm flex items-center justify-between gap-4`}>
@@ -868,15 +908,15 @@ export default function App() {
                     filterDate === '2026-11-08' ? 'bg-orange-600 text-white' : 'bg-slate-100 dark:bg-slate-800'
                   }`}
                 >
-                  Diwali Day (Nov 8)
+                  Diwali Day (Sun, Nov 8)
                 </button>
                 <button
-                  onClick={() => setFilterDate('2026-11-09')}
+                  onClick={() => setFilterDate('2026-11-10')}
                   className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-                    filterDate === '2026-11-09' ? 'bg-orange-600 text-white' : 'bg-slate-100 dark:bg-slate-800'
+                    filterDate === '2026-11-10' ? 'bg-orange-600 text-white' : 'bg-slate-100 dark:bg-slate-800'
                   }`}
                 >
-                  Hindu New Year / Annakut (Nov 9)
+                  Hindu New Year / Annakut (Tue, Nov 10)
                 </button>
               </div>
 
@@ -899,6 +939,7 @@ export default function App() {
                 .filter(s => s.date === filterDate)
                 .map((shift) => {
                   const assigned = shift.assignedVolunteers || [];
+                  const checkedIn = shift.checkedInVolunteers || [];
                   const gap = shift.capacity - assigned.length;
 
                   return (
@@ -933,26 +974,45 @@ export default function App() {
                           )}
                         </div>
 
-                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
                           {assigned.length === 0 ? (
                             <p className="text-xs text-slate-400 italic py-2 text-center border border-dashed rounded-xl">No Sevaks assigned to this shift yet.</p>
                           ) : (
-                            assigned.map((vol) => (
-                              <div key={vol.submissionId} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                                <div>
-                                  <p className="font-bold">{vol.name}</p>
-                                  <p className="text-[10px] text-slate-400">{vol.phone}</p>
+                            assigned.map((vol) => {
+                              const isCheckedIn = checkedIn.includes(vol.submissionId);
+                              return (
+                                <div key={vol.submissionId} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                                  <div>
+                                    <p className="font-bold">{vol.name}</p>
+                                    <p className="text-[10px] text-slate-400">{vol.mandal || vol.phone}</p>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {/* On-Site Day-Of Check-In Toggle */}
+                                    <button
+                                      onClick={() => toggleCheckInVolunteer(shift.id, vol.submissionId)}
+                                      className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${
+                                        isCheckedIn
+                                          ? 'bg-emerald-600 text-white shadow-sm'
+                                          : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 hover:bg-emerald-100'
+                                      }`}
+                                    >
+                                      <UserCheck className="w-3 h-3" />
+                                      {isCheckedIn ? 'Checked In' : 'Check In'}
+                                    </button>
+
+                                    {isAdmin && (
+                                      <button
+                                        onClick={() => handleRemoveVolunteerFromShift(shift.id, vol.submissionId)}
+                                        className="p-1 text-slate-400 hover:text-rose-600"
+                                      >
+                                        <XCircle className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                                {isAdmin && (
-                                  <button
-                                    onClick={() => handleRemoveVolunteerFromShift(shift.id, vol.submissionId)}
-                                    className="p-1 text-slate-400 hover:text-rose-600"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            ))
+                              );
+                            })
                           )}
                         </div>
                       </div>
@@ -965,7 +1025,84 @@ export default function App() {
 
       </main>
 
-      {/* MODAL: ADD/EDIT ROTA SHIFT */}
+      {}
+      {selectedVolunteerForInspection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-3xl p-6 shadow-2xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200'}`}>
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+              <div>
+                <h2 className="text-lg font-bold">{selectedVolunteerForInspection.name}</h2>
+                <p className="text-xs text-orange-600 font-semibold">{selectedVolunteerForInspection.mandal}</p>
+              </div>
+              <button onClick={() => setSelectedVolunteerForInspection(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mt-4 text-xs">
+              <div>
+                <p className="font-bold text-slate-400 uppercase text-[10px]">Contact Info</p>
+                <p className="font-medium mt-0.5">{selectedVolunteerForInspection.phone}</p>
+              </div>
+
+              <div>
+                <p className="font-bold text-slate-400 uppercase text-[10px] mb-2">Assigned Rota Shifts</p>
+                {(!selectedVolunteerForInspection.assignedShifts || selectedVolunteerForInspection.assignedShifts.length === 0) ? (
+                  <p className="text-slate-400 italic py-2">No active shifts assigned yet.</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {selectedVolunteerForInspection.assignedShifts.map((s, idx) => (
+                      <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+                        <div>
+                          <p className="font-bold text-xs">{s.title}</p>
+                          <p className="text-[10px] text-slate-500">{s.role} | {s.date === '2026-11-08' ? 'Nov 8' : 'Nov 10'} ({s.time})</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            await handleRemoveVolunteerFromShift(s.shiftId, selectedVolunteerForInspection.id);
+                            // Refresh local inspection data
+                            const updatedSub = submissions.find(sub => sub.id === selectedVolunteerForInspection.id);
+                            if (updatedSub) setSelectedVolunteerForInspection(updatedSub);
+                          }}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                <label className="block font-bold mb-1">Add Another Shift to {selectedVolunteerForInspection.name}</label>
+                <select
+                  onChange={async (e) => {
+                    if (!e.target.value) return;
+                    const targetShift = shifts.find(s => s.id === e.target.value);
+                    await handleAssignVolunteerToShift(selectedVolunteerForInspection, targetShift);
+                    e.target.value = '';
+                    const updatedSub = submissions.find(sub => sub.id === selectedVolunteerForInspection.id);
+                    if (updatedSub) setSelectedVolunteerForInspection(updatedSub);
+                  }}
+                  className={`w-full p-2.5 text-xs rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`}
+                >
+                  <option value="">Select Shift to Assign...</option>
+                  {shifts
+                    .filter(s => (s.assignedVolunteers || []).length < s.capacity)
+                    .map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.date === '2026-11-08' ? 'Nov 8' : 'Nov 10'} | {s.role} ({s.startTime}-{s.endTime})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {}
       {isShiftModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className={`w-full max-w-lg rounded-3xl p-6 shadow-2xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200'}`}>
@@ -1013,8 +1150,8 @@ export default function App() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold mb-1">Department *</label>
-                  <select name="role" defaultValue={editingShift?.role || SHIFT_ROLES[0]} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`}>
-                    {SHIFT_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  <select name="role" defaultValue={editingShift?.role || SHIFT_ROLES[1]} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`}>
+                    {SHIFT_ROLES.filter(r => r !== 'No preference').map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1027,17 +1164,17 @@ export default function App() {
                 <div>
                   <label className="block font-bold mb-1">Date *</label>
                   <select name="date" defaultValue={editingShift?.date || '2026-11-08'} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`}>
-                    <option value="2026-11-08">Nov 8 (Diwali)</option>
-                    <option value="2026-11-09">Nov 9 (New Year)</option>
+                    <option value="2026-11-08">Sun, Nov 8 (Diwali)</option>
+                    <option value="2026-11-10">Tue, Nov 10 (New Year)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block font-bold mb-1">Start *</label>
-                  <input type="time" name="startTime" required defaultValue={editingShift?.startTime || '07:00'} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`} />
+                  <input type="time" name="startTime" required defaultValue={editingShift?.startTime || '09:00'} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`} />
                 </div>
                 <div>
                   <label className="block font-bold mb-1">End *</label>
-                  <input type="time" name="endTime" required defaultValue={editingShift?.endTime || '10:00'} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`} />
+                  <input type="time" name="endTime" required defaultValue={editingShift?.endTime || '13:00'} className={`w-full p-2.5 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} outline-none`} />
                 </div>
               </div>
 
