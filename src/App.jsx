@@ -72,10 +72,10 @@ const MANDALS = [
 ];
 
 // Admin SIDs with management privilege
-const ADMIN_SIDS = ['SID-1001', 'SID-ADMIN'];
+const ADMIN_SIDS = ['1001', 'ADMIN'];
 
 const DEPARTMENT_LEADS = {
-  "Annakut Setup/Windup": { lead: "Bhavesh Patel", phone: "07700 900111" },
+  "Annakut Setup/Windup": { lead: "Reena Patel", phone: "07700 900111" },
   "AV": { lead: "Ketan Shah", phone: "07700 900222" },
   "Catering/Food stalls": { lead: "Dhiren Amin", phone: "07700 900333" },
   "Finance": { lead: "Sanjay Mehta", phone: "07700 900444" },
