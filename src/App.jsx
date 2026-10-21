@@ -489,11 +489,11 @@ export default function App() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg lg:text-xl font-black bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
-                  BAPS Luton Diwali and Annakut 2026 Volunteer Management
+                  BAPS Luton Diwali and Annakut 2026
                 </h1>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
-                Diwali, Setup & Annakut Rota System • BAPS Shri Swaminarayan Mandir, Luton
+                Volunteer Management
               </p>
             </div>
           </div>
