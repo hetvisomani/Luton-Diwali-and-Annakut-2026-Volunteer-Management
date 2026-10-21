@@ -29,7 +29,8 @@ import {
   TrendingUp,
   ShieldAlert,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  ChevronLeft
 } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -72,10 +73,10 @@ const MANDALS = [
 ];
 
 // Admin SIDs with management privilege
-const ADMIN_SIDS = ['SID-1001', 'SID-ADMIN'];
+const ADMIN_SIDS = ['SID-1001', '1001', 'SID-ADMIN', 'ADMIN'];
 
 const DEPARTMENT_LEADS = {
-  "Annakut Setup/Windup": { lead: "Reena Patel", phone: "07700 900111" },
+  "Annakut Setup/Windup": { lead: "Bhavesh Patel", phone: "07700 900111" },
   "AV": { lead: "Ketan Shah", phone: "07700 900222" },
   "Catering/Food stalls": { lead: "Dhiren Amin", phone: "07700 900333" },
   "Finance": { lead: "Sanjay Mehta", phone: "07700 900444" },
@@ -242,7 +243,7 @@ export default function App() {
 
   // RAG & Calendar Gaps filters
   const [ragGapDeptFilter, setRagGapDeptFilter] = useState('ALL');
-  const [ragGapDayFilter, setRagGapDayFilter] = useState('diwali');
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState('diwali');
 
   // Modal Editing State
   const [editingShift, setEditingShift] = useState(null);
@@ -250,7 +251,11 @@ export default function App() {
   // Computed property to check if current logged-in user is an Admin
   const isAdminLoggedIn = useMemo(() => {
     if (!loggedInSevak) return false;
-    return ADMIN_SIDS.includes(loggedInSevak.sid.toUpperCase());
+    const cleanSid = loggedInSevak.sid.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+    return ADMIN_SIDS.some(adminSid => {
+      const cleanAdmin = adminSid.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+      return cleanSid === cleanAdmin || cleanSid.endsWith(cleanAdmin);
+    });
   }, [loggedInSevak]);
 
   const handleSyncMicrosoftForm = () => {
@@ -290,15 +295,29 @@ export default function App() {
 
   const handlePortalLogin = (e) => {
     e.preventDefault();
-    const cleanSid = portalSidInput.trim().toUpperCase();
-    const found = submissions.find(s => s.sid.toUpperCase() === cleanSid);
+    const cleanInput = portalSidInput.trim().toUpperCase().replace(/[^0-9A-Z]/g, '');
+
+    if (!cleanInput) {
+      setPortalMessage('Please enter your numeric Sevak ID.');
+      return;
+    }
+
+    // Find submission matching full SID or purely numeric SID portion
+    const found = submissions.find(s => {
+      const cleanSubSid = s.sid.toUpperCase().replace(/[^0-9A-Z]/g, '');
+      const numOnlySub = s.sid.replace(/\D/g, '');
+      const numOnlyInput = portalSidInput.replace(/\D/g, '');
+
+      return cleanSubSid === cleanInput || 
+             (numOnlyInput && numOnlySub === numOnlyInput);
+    });
 
     if (found) {
       setLoggedInSevak(found);
       setPortalMessage('');
       setActiveTab('portal');
     } else {
-      setPortalMessage('Invalid Sevak ID (SID). Please check your personalized SID provided in your email.');
+      setPortalMessage('Invalid Sevak ID (SID). Please enter your numeric ID (e.g. 1001 or 1002).');
     }
   };
 
@@ -391,7 +410,6 @@ export default function App() {
     if (!shift) return;
 
     if (confirm(`Are you sure you want to completely remove "${shift.title}" from the Master Rota?`)) {
-      // Unassign all volunteers from this shift
       setSubmissions(prev => 
         prev.map(sub => ({
           ...sub,
@@ -400,7 +418,6 @@ export default function App() {
         }))
       );
 
-      // Remove shift from shifts array
       setShifts(prev => prev.filter(s => s.id !== shiftId));
     }
   };
@@ -536,11 +553,10 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
 
-        {/* Dynamic Navigation Bar: Shows Admin Options only if an Admin SID is logged in */}
+        {/* Dynamic Navigation Bar */}
         {loggedInSevak && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200/80 dark:border-slate-800 pb-3">
             <div className="flex items-center gap-1.5 bg-amber-100/60 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-amber-200/50 dark:border-slate-800 overflow-x-auto w-full sm:w-auto">
-              {/* Sevak Portal (Available for all logged in users) */}
               <button
                 onClick={() => setActiveTab('portal')}
                 className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
@@ -553,7 +569,6 @@ export default function App() {
                 Sevak Rota Schedule
               </button>
 
-              {/* Admin Tabs - ONLY visible to ADMIN SIDs */}
               {isAdminLoggedIn && (
                 <>
                   <button
@@ -601,7 +616,7 @@ export default function App() {
                     }`}
                   >
                     <BarChart3 className="w-4 h-4" />
-                    RAG & Gaps
+                    Calendar & RAG
                   </button>
                 </>
               )}
@@ -609,7 +624,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 1: SEVAK PORTAL (Default Link Landing View for Everyone) */}
+        {/* SECTION 1: SEVAK PORTAL (Numeric SID Entry Support) */}
         {activeTab === 'portal' && (
           <div className="max-w-3xl mx-auto space-y-6">
             {!loggedInSevak ? (
@@ -623,7 +638,7 @@ export default function App() {
                     Personal Sevak Schedule Portal
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-                    Please enter your unique Sevak ID (SID) to view your individual Diwali & Annakut seva duties.
+                    Please enter your numeric Sevak ID (SID) to view your individual Diwali & Annakut seva duties.
                   </p>
                 </div>
 
@@ -635,8 +650,8 @@ export default function App() {
                       required
                       value={portalSidInput}
                       onChange={e => setPortalSidInput(e.target.value)}
-                      placeholder="Enter Your SID (e.g. SID-1001)"
-                      className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border text-xs sm:text-sm font-bold tracking-wider uppercase focus:ring-2 focus:ring-amber-500 outline-none transition-all ${
+                      placeholder="Enter Your SID Number (e.g. 1001)"
+                      className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border text-sm sm:text-base font-bold tracking-wider focus:ring-2 focus:ring-amber-500 outline-none transition-all ${
                         darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-900'
                       }`}
                     />
@@ -657,13 +672,13 @@ export default function App() {
                 </form>
 
                 <div className="pt-4 border-t border-amber-100 dark:border-slate-800 text-xs text-slate-400 space-y-2">
-                  <p className="font-semibold text-slate-500">Quick Test SIDs:</p>
+                  <p className="font-semibold text-slate-500">Quick Test Numeric SIDs:</p>
                   <div className="flex flex-wrap justify-center gap-2 font-mono text-[11px]">
-                    <button onClick={() => setPortalSidInput('SID-1001')} className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold">
-                      SID-1001 (Admin Access)
+                    <button onClick={() => setPortalSidInput('1001')} className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                      1001 (Admin Access)
                     </button>
-                    <button onClick={() => setPortalSidInput('SID-1002')} className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-bold">
-                      SID-1002 (Regular Sevak)
+                    <button onClick={() => setPortalSidInput('1002')} className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-bold">
+                      1002 (Regular Sevak)
                     </button>
                   </div>
                 </div>
@@ -798,7 +813,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 2: VOLUNTEER FORM (Inside Admin) */}
+        {/* SECTION 2: VOLUNTEER FORM */}
         {isAdminLoggedIn && activeTab === 'form' && (
           <div className="max-w-3xl mx-auto space-y-6">
             <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-6`}>
@@ -857,7 +872,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 3: VOLUNTEER ALLOCATION (Enhanced Phone View) */}
+        {/* SECTION 3: VOLUNTEER ALLOCATION (Enhanced Phone Format with Name Prominently Displayed) */}
         {}
         {isAdminLoggedIn && activeTab === 'allocation' && (
           <div className="space-y-6">
@@ -894,7 +909,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Mobile-Optimized Grid Cards */}
+            {/* Mobile-Optimized Grid Cards with Prominent Name Display */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredSubmissions.map(sub => (
                 <div
@@ -903,10 +918,24 @@ export default function App() {
                     darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'
                   } shadow-sm space-y-3 relative`}
                 >
-                  {/* Top Bar - Clear Mobile Header */}
+                  {/* Top Bar - Mobile Header with Name as Main Headline */}
                   <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                    <div className="space-y-1 w-full">
+                      {/* Name Prominently Displayed First */}
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+                          {sub.fullName}
+                        </h3>
+                        <button
+                          onClick={() => handleDeleteVolunteer(sub.id)}
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Badges: SID & Shift Status */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-orange-500 text-white tracking-wider">
                           {sub.sid}
                         </span>
@@ -919,24 +948,12 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* Prominent Clear Name for Mobile */}
-                      <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
-                        {sub.fullName}
-                      </h3>
-
-                      <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold flex items-center gap-2">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold flex items-center gap-2 pt-1">
                         <span>{sub.phone}</span>
                         <span>•</span>
-                        <span className="truncate max-w-[150px]">{sub.mandal}</span>
+                        <span className="truncate">{sub.mandal}</span>
                       </p>
                     </div>
-
-                    <button
-                      onClick={() => handleDeleteVolunteer(sub.id)}
-                      className="p-2 text-slate-400 hover:text-rose-500 rounded-xl transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
 
                   {/* Allocated Shifts List */}
@@ -1006,8 +1023,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 4: MASTER ROTA (With Individual Shift Deletion) */}
-        {}
+        {/* SECTION 4: MASTER ROTA */}
         {isAdminLoggedIn && activeTab === 'masterRota' && (
           <div className="space-y-6">
             <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm flex flex-wrap items-center justify-between gap-3`}>
@@ -1079,7 +1095,6 @@ export default function App() {
                           <Edit3 className="w-4 h-4" />
                         </button>
 
-                        {/* Delete Individual Shift Button */}
                         <button
                           onClick={() => handleDeleteShiftFromMasterRota(shift.id)}
                           title="Delete Shift Completely from Master Rota"
@@ -1167,12 +1182,13 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 5: RAG ANALYTICS & CALENDAR GAPS */}
+        {/* SECTION 5: RAG ANALYTICS & CALENDAR MATRIX VIEW */}
+        {}
         {isAdminLoggedIn && activeTab === 'ragGaps' && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-slate-400">Total Shifts Needed</div>
+                <div className="text-[10px] font-bold uppercase text-slate-400">Total Capacity Needed</div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white">{totalCapacityStats.totalReq}</div>
               </div>
 
@@ -1192,27 +1208,110 @@ export default function App() {
               </div>
             </div>
 
-            {/* Department RAG Breakdown */}
+            {/* Interactive RAG Calendar Matrix */}
             <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-6`}>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-amber-500" /> Department Capacity Matrix
-              </h3>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-amber-500" /> Event RAG Calendar Schedule
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Select event day to examine daily time-slot coverage & gaps matrix.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-                {departmentMetrics.map(item => (
-                  <div key={item.department} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{item.department}</span>
-                      <span className="text-slate-500 font-medium">{item.totalAssigned} / {item.totalRequired}</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div 
-                        className={`h-full ${item.rag === 'GREEN' ? 'bg-emerald-500' : item.rag === 'AMBER' ? 'bg-amber-500' : 'bg-rose-500'}`}
-                        style={{ width: `${Math.min(100, item.percentage)}%` }}
-                      ></div>
-                    </div>
+                {/* Day Navigation Tabs */}
+                <div className="flex items-center gap-1.5 bg-amber-100/50 dark:bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
+                  {DAYS.map(day => (
+                    <button
+                      key={day.id}
+                      onClick={() => setSelectedCalendarDay(day.id)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                        selectedCalendarDay === day.id
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                      }`}
+                    >
+                      {day.label.split('/')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Day Header Banner */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl">
+                    <Calendar className="w-5 h-5" />
                   </div>
-                ))}
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {DAYS.find(d => d.id === selectedCalendarDay)?.label}
+                    </h4>
+                    <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                      Date: {DAYS.find(d => d.id === selectedCalendarDay)?.date}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Slot Calendar Grid Matrix */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400">
+                      <th className="py-3 px-4 font-bold uppercase tracking-wider">Department</th>
+                      {TIME_SLOTS.map(slot => (
+                        <th key={slot} className="py-3 px-4 font-bold uppercase tracking-wider text-center">
+                          {slot}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                    {DEPARTMENTS.map(dept => {
+                      return (
+                        <tr key={dept} className="hover:bg-amber-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
+                            {dept}
+                          </td>
+                          {TIME_SLOTS.map(slot => {
+                            const shift = shifts.find(s => s.department === dept && s.day === selectedCalendarDay && s.timeSlot === slot);
+                            if (!shift) return <td key={slot} className="text-center text-slate-300">-</td>;
+
+                            const assignedCount = shift.assignedVolunteers.length;
+                            const reqCount = shift.requiredVolunteers;
+                            const gap = Math.max(0, reqCount - assignedCount);
+                            const isFilled = assignedCount >= reqCount;
+
+                            return (
+                              <td key={slot} className="py-2 px-3 text-center">
+                                <div className={`p-2.5 rounded-2xl border text-center space-y-1 ${
+                                  isFilled
+                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                                    : assignedCount > 0
+                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300'
+                                    : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
+                                }`}>
+                                  <div className="font-extrabold text-xs">
+                                    {assignedCount} / {reqCount}
+                                  </div>
+                                  <div className="text-[10px] font-bold">
+                                    {isFilled ? (
+                                      <span className="text-emerald-600 dark:text-emerald-400">100% Full</span>
+                                    ) : (
+                                      <span className="text-rose-600 dark:text-rose-400">{gap} Needed</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
