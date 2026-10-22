@@ -784,12 +784,12 @@ export default function App() {
                                     <User className="w-3.5 h-3.5 text-slate-400" />
                                     <span className="text-slate-600 dark:text-slate-300">Dept Lead: <strong>{deptContact.lead}</strong></span>
                                   </div>
-                                  <a
+                                  {/* <a
                                     href={`tel:${deptContact.phone.replace(/\s+/g, '')}`}
                                     className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 hover:underline"
                                   >
                                     <PhoneCall className="w-3 h-3" /> {deptContact.phone}
-                                  </a>
+                                  </a> */}
                                 </div>
                               )}
                             </div>
@@ -798,15 +798,6 @@ export default function App() {
                       </div>
                     )}
                   </div>
-
-                  {/* <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      onClick={() => handleSendEmailNotification(loggedInSevak)}
-                      className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-                    >
-                      <Mail className="w-4 h-4" /> Email My Schedule
-                    </button>
-                  </div> */}
                 </div>
               </div>
             )}
