@@ -653,7 +653,7 @@ export default function App() {
                       required
                       value={portalSidInput}
                       onChange={e => setPortalSidInput(e.target.value)}
-                      placeholder="Enter your Satsangi ID Number (e.g. 1001)"
+                      placeholder="Enter your Satsangi ID Number"
                       className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border text-sm sm:text-base font-bold tracking-wider focus:ring-2 focus:ring-amber-500 outline-none transition-all ${
                         darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-900'
                       }`}
