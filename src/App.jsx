@@ -784,12 +784,6 @@ export default function App() {
                                     <User className="w-3.5 h-3.5 text-slate-400" />
                                     <span className="text-slate-600 dark:text-slate-300">Dept Lead: <strong>{deptContact.lead}</strong></span>
                                   </div>
-                                  {/* <a
-                                    href={`tel:${deptContact.phone.replace(/\s+/g, '')}`}
-                                    className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 hover:underline"
-                                  >
-                                    <PhoneCall className="w-3 h-3" /> {deptContact.phone}
-                                  </a> */}
                                 </div>
                               )}
                             </div>
