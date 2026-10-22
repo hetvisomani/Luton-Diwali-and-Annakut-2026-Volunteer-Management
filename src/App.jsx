@@ -76,21 +76,21 @@ const MANDALS = [
 const ADMIN_SIDS = ['SID-1001', '1001', 'SID-ADMIN', 'ADMIN'];
 
 const DEPARTMENT_LEADS = {
-  "Annakut Setup/Windup": { lead: "Bhavesh Patel", phone: "07700 900111" },
-  "AV": { lead: "Ketan Shah", phone: "07700 900222" },
-  "Catering/Food stalls": { lead: "Dhiren Amin", phone: "07700 900333" },
-  "Finance": { lead: "Sanjay Mehta", phone: "07700 900444" },
-  "Housekeeping": { lead: "Mahesh Joshi", phone: "07700 900555" },
-  "Mandir Shop": { lead: "Rakesh Patel", phone: "07700 900666" },
-  "Outreach": { lead: "Anil Kumar", phone: "07700 900777" },
-  "Parking": { lead: "Jiten Patel", phone: "07700 900888" },
-  "Photography/Videography": { lead: "Pravin Tailor", phone: "07700 900999" },
-  "Security": { lead: "Dipak Bhagat", phone: "07700 900123" },
-  "Sabha Vyavestha": { lead: "Hitesh Trivedi", phone: "07700 900234" },
-  "Sampark": { lead: "Nitin Sharma", phone: "07700 900345" },
-  "Welcome": { lead: "Jayesh Patel", phone: "07700 900456" },
-  "Flow management": { lead: "Amit Parikh", phone: "07700 900567" },
-  "Volunteer management": { lead: "Harish Dave", phone: "07700 900678" }
+  "Annakut Setup/Windup": { lead: "Bhavesh Patel"},
+  "AV": { lead: "Ketan Shah"},
+  "Catering/Food stalls": { lead: "Dhiren Amin"},
+  "Finance": { lead: "Sanjay Mehta"},
+  "Housekeeping": { lead: "Mahesh Joshi"},
+  "Mandir Shop": { lead: "Rakesh Patel"},
+  "Outreach": { lead: "Anil Kumar"},
+  "Parking": { lead: "Jiten Patel"},
+  "Photography/Videography": { lead: "Pravin Tailor"},
+  "Security": { lead: "Dipak Bhagat"},
+  "Sabha Vyavestha": { lead: "Hitesh Trivedi"},
+  "Sampark": { lead: "Nitin Sharma"},
+  "Welcome": { lead: "Jayesh Patel"},
+  "Flow management": { lead: "Amit Parikh"},
+  "Volunteer management": { lead: "Harish Dave"}
 };
 
 const generateInitialShifts = () => {
