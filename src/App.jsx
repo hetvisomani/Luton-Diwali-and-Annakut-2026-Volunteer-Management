@@ -321,10 +321,6 @@ export default function App() {
     }
   };
 
-  const handleSendEmailNotification = (sevak) => {
-    alert(`Automated email & SMS schedule summary dispatched to ${sevak.fullName} (SID: ${sevak.sid}).`);
-  };
-
   const assignVolunteerToShift = (submissionId, shiftId) => {
     setShifts(prevShifts => 
       prevShifts.map(shift => {
