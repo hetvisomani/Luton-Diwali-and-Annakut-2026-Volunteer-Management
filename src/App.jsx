@@ -799,14 +799,14 @@ export default function App() {
                     )}
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                  {/* <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button
                       onClick={() => handleSendEmailNotification(loggedInSevak)}
                       className="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                     >
                       <Mail className="w-4 h-4" /> Email My Schedule
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             )}
