@@ -698,12 +698,12 @@ export default function App() {
                           </span>
                         )}
                       </div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-2">
-                        Jay Swaminarayan, {loggedInSevak.fullName}
-                      </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {loggedInSevak.phone} • {loggedInSevak.email || 'No email registered'}
-                      </p>
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-2">
+                          Jay Swaminarayan,
+                          <span className="block">{loggedInSevak.fullName}</span>
+                        </h2>
+                      </div>
                     </div>
 
                     <button
