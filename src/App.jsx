@@ -631,10 +631,10 @@ export default function App() {
 
                 <div>
                   <h2 className={`text-xl sm:text-2xl font-black ${darkMode ? 'text-white' : 'text-black'}`}>
-                    Personal Sevak Schedule Portal
+                    BAPS Luton Diwali & Annakut Volunteer Portal
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-                    Please enter your numeric Sevak ID (SID) to view your individual Diwali & Annakut seva duties.
+                    View your seva rotas.
                   </p>
                 </div>
 
@@ -646,7 +646,7 @@ export default function App() {
                       required
                       value={portalSidInput}
                       onChange={e => setPortalSidInput(e.target.value)}
-                      placeholder="Enter Your SID Number (e.g. 1001)"
+                      placeholder="Enter your Satsangi ID Number"
                       className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border text-sm sm:text-base font-bold tracking-wider focus:ring-2 focus:ring-amber-500 outline-none transition-all ${
                         darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-900'
                       }`}
