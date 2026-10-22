@@ -701,7 +701,7 @@ export default function App() {
                       <div>
                         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-2">
                           Jay Swaminarayan,
-                          <span className="block">{loggedInSevak.fullName}</span>
+                          <span className="block text-slate-900 dark:text-white">{loggedInSevak.fullName}</span>
                         </h2>
                       </div>
                     </div>
