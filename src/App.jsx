@@ -630,7 +630,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  <h2 className={`text-xl sm:text-2xl font-black ${darkMode ? 'text-white' : 'text-black'}`}>
                     Personal Sevak Schedule Portal
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
@@ -699,9 +699,11 @@ export default function App() {
                         )}
                       </div>
                       <div>
-                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-2">
+                        <h2 className={`text-xl sm:text-2xl font-black mt-2 ${darkMode ? 'text-white' : 'text-black'}`}>
                           Jay Swaminarayan,
-                          <span className="block text-slate-900 dark:text-white">{loggedInSevak.fullName}</span>
+                            <span className={`block ${darkMode ? 'text-white' : 'text-black'}`}>
+                              {loggedInSevak.fullName}
+                            </span>
                         </h2>
                       </div>
                     </div>
