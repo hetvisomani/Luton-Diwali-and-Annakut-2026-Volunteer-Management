@@ -56,7 +56,7 @@ const DAYS = [
 ];
 
 // Admin SIDs with management privilege
-const ADMIN_SIDS = ['SID-1001', '1001', 'SID-ADMIN', 'ADMIN'];
+const ADMIN_SIDS = ['SID-31056', '31056', 'SID-ADMIN', 'ADMIN'];
 
 const DEPARTMENT_LEADS = {
   "Annakut Setup/Windup": { lead: "Bhavesh Patel"},
@@ -112,10 +112,10 @@ const generateInitialShifts = () => {
 const initialSubmissions = [
   {
     id: 'sub-1',
-    sid: 'SID-1001',
-    fullName: 'Jay Patel (Admin)',
+    sid: 'SID-31056',
+    fullName: 'Hetvi Somani (Admin)',
     email: 'jay.patel@example.com',
-    mandal: 'Yuvak Mandal (ages 22-35)',
+    mandal: 'Yuvati Mandal (ages 22-35)',
     preferredDepartments: ['Housekeeping', 'Parking', 'Annakut Setup/Windup'],
     availability: {
       diwali: ['9am to 1pm', '1pm to 5pm'],
@@ -677,8 +677,8 @@ export default function App() {
                 <div className="pt-4 border-t border-amber-100 dark:border-slate-800 text-xs text-slate-400 space-y-2">
                   <p className="font-semibold text-slate-500">Quick Test Numeric SIDs:</p>
                   <div className="flex flex-wrap justify-center gap-2 font-mono text-[11px]">
-                    <button onClick={() => setPortalSidInput('1001')} className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold">
-                      1001 (Admin Access)
+                    <button onClick={() => setPortalSidInput('31056')} className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                      31056 (Admin Access)
                     </button>
                     <button onClick={() => setPortalSidInput('1002')} className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-bold">
                       1002 (Regular Sevak)
