@@ -283,7 +283,7 @@ export default function App() {
     const cleanInput = portalSidInput.trim().toUpperCase().replace(/[^0-9A-Z]/g, '');
 
     if (!cleanInput) {
-      setPortalMessage('Please enter your numeric Sevak ID.');
+      setPortalMessage('Please enter your numeric Satsangi ID.');
       return;
     }
 
@@ -301,7 +301,7 @@ export default function App() {
       setPortalMessage('');
       setActiveTab('portal');
     } else {
-      setPortalMessage('Invalid Sevak ID (SID). Please enter your numeric ID (e.g. 1001 or 1002).');
+      setPortalMessage('Invalid Satsangi ID (SID). Please enter your numeric ID (e.g. 1001 or 1002).');
     }
   };
 
