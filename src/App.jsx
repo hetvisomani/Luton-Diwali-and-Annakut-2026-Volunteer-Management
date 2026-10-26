@@ -483,6 +483,9 @@ useEffect(() => {
 
     const importedSevaks = parsedRows.map((item, idx) => {
       const name =
+        item.fullName ||
+        item.FullName ||
+        item.Name ||
         item.name ||
         item['full name'] ||
         item['fullname'] ||
@@ -685,18 +688,17 @@ useEffect(() => {
       };
     });
 
-    // Save all imported/updated sevaks permanently
-    const { error } = await supabase
-      .from('submissions')
-      .upsert(
-        mergedSevaks.map(submissionToDb),
-        { onConflict: 'sid' }
-      );
-
+    // Securely save all imported/updated sevaks
+    const { data, error } = await supabase.rpc('admin_import_sevaks', {
+      input_admin_sid: loggedInSevak.sid,
+      input_sevaks: mergedSevaks.map(submissionToDb)
+    });
     if (error) throw error;
-
-    // Reload from Supabase so the screen matches the database
-    await loadData();
+    if (!data?.success) {
+      throw new Error(data?.message || 'Import failed');
+    }
+    // Reload securely so the screen matches the database
+    await loadAdminData(loggedInSevak.sid);
 
     const existingSidSet = new Set(
       submissions.map(sub =>
@@ -841,18 +843,18 @@ useEffect(() => {
       };
     });
 
-    // Save permanently to Supabase
-    const { error } = await supabase
-      .from('submissions')
-      .upsert(
-        mergedSevaks.map(submissionToDb),
-        { onConflict: 'sid' }
-      );
-
+    // Securely save permanently to Supabase
+    const { data, error } = await supabase.rpc('admin_import_sevaks', {
+      input_admin_sid: loggedInSevak.sid,
+      input_sevaks: mergedSevaks.map(submissionToDb)
+    });
     if (error) throw error;
-
-    // Reload the database data
-    await loadData();
+    if (!data?.success) {
+      throw new Error(data?.message || 'Import failed');
+    }
+    
+    // Reload securely from Supabase
+    await loadAdminData(loggedInSevak.sid);
 
     setImportJsonText('');
     setShowImportModal(false);
