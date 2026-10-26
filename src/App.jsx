@@ -907,15 +907,25 @@ useEffect(() => {
       );
       return;
     }
-
+    
+    if (data.is_admin) {
+      const adminDataLoaded = await loadAdminData(cleanInput);
+      
+      if (!adminDataLoaded) {
+        setPortalMessage(
+          'Admin data could not be loaded. Please try again.'
+        );
+        return;
+      }
+    }
+    
     setLoggedInSevak({
       ...found,
       isAdmin: data.is_admin
     });
-
     setPortalMessage('');
     setActiveTab('portal');
-
+  
   } catch (error) {
     console.error('SID login error:', error);
     setPortalMessage(
