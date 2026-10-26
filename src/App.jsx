@@ -1594,7 +1594,11 @@ const loadData = async () => {
               <KeyRound className="w-6 h-6" />
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+            <h2
+              className={`text-xl sm:text-2xl font-black ${
+                darkMode ? 'text-white' : 'text-slate-900'
+              }`}
+              >
               Jay Swaminarayan
             </h2>
 
