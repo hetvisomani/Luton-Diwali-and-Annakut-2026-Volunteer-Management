@@ -1567,68 +1567,73 @@ const loadData = async () => {
       {/* Main Content Body */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
 
-        {/* SECTION 1: SEVAK PORTAL LOGIN & PERSONAL ROTA */}
-        {activeTab === 'portal' && (
-          <div className={`${!loggedInSevak ? 'max-w-4xl' : 'max-w-xl'} mx-auto space-y-6`}>
-            {!loggedInSevak ? (
-            <>
-              {/* Annakut hero image */}
-              <div className="w-full overflow-hidden rounded-3xl shadow-2xl">
-                <img
-                  src="/annakut-banner.jpg"
-                  alt="BAPS Diwali and Annakut"
-                  className="w-full h-auto block"
-                />
-              </div>
+{/* SECTION 1: SEVAK PORTAL LOGIN & PERSONAL ROTA */}
+{activeTab === 'portal' && (
+  <div className={`${!loggedInSevak ? 'max-w-4xl' : 'max-w-xl'} mx-auto space-y-6`}>
+    {!loggedInSevak ? (
+      <>
+        {/* Annakut hero image */}
+        <div className="w-full overflow-hidden rounded-3xl shadow-2xl">
+          <img
+            src="/annakut-banner.jpg"
+            alt="BAPS Diwali and Annakut"
+            className="w-full h-auto block"
+          />
+        </div>
 
-              {/* SID login card/*}
-              </div> className={`max-w-xl mx-auto p-6 sm:p-8 rounded-3xl border ${
-                darkMode
-                 ? 'bg-slate-900 border-slate-800'
-                 : 'bg-white border-amber-200'
-                 } shadow-2xl space-y-6 text-center`}>
-                
-                <div className="space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-orange-500/30">
-                    <KeyRound className="w-6 h-6" />
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                    Jay Swaminarayan
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    Enter your Satsangi ID (SID) to view your Seva Rota.
-                  </p>
-                </div>
+        {/* SID login card */}
+        <div
+          className={`max-w-xl mx-auto p-6 sm:p-8 rounded-3xl border ${
+            darkMode
+              ? 'bg-slate-900 border-slate-800'
+              : 'bg-white border-amber-200'
+          } shadow-2xl space-y-6 text-center`}
+        >
+          <div className="space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-orange-500/30">
+              <KeyRound className="w-6 h-6" />
+            </div>
 
-                <form onSubmit={handlePortalLogin} className="space-y-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="enter your SID"
-                      value={portalSidInput}
-                      onChange={e => setPortalSidInput(e.target.value)}
-                      className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
-                        darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500' : 'bg-slate-50 border-amber-200 text-slate-900 focus:border-amber-500'
-                      }`}
-                    />
-                  </div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+              Jay Swaminarayan
+            </h2>
 
-                  {portalMessage && (
-                    <p className="text-xs font-bold text-rose-500">
-                      {portalMessage}
-                    </p>
-                  )}
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Enter your Satsangi ID (SID) to view your Seva Rota.
+            </p>
+          </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2"
-                  >
-                    View My Rota Schedule
-                  </button>
-                </form>
-              </div>
-              </>
-          ) : (
+          <form onSubmit={handlePortalLogin} className="space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="enter your SID"
+                value={portalSidInput}
+                onChange={e => setPortalSidInput(e.target.value)}
+                className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
+                  darkMode
+                    ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500'
+                    : 'bg-slate-50 border-amber-200 text-slate-900 focus:border-amber-500'
+                }`}
+              />
+            </div>
+
+            {portalMessage && (
+              <p className="text-xs font-bold text-rose-500">
+                {portalMessage}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2"
+            >
+              View My Rota Schedule
+            </button>
+          </form>
+        </div>
+      </>
+    ) : (
               <div className="space-y-6">
                 {/* Sevak Logged-in Header */}
                 <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-4`}>
