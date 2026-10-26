@@ -1580,7 +1580,7 @@ const loadData = async () => {
                     Jay Swaminarayan
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    Enter your numeric Satsangi ID (SID) to view your allocated Diwali & Annakut 2026 Seva Rota.
+                    Enter your Satsangi ID (SID) to view your Seva Rota.
                   </p>
                 </div>
 
@@ -1588,7 +1588,7 @@ const loadData = async () => {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="e.g. 31056 or 1002"
+                      placeholder="enter your SID"
                       value={portalSidInput}
                       onChange={e => setPortalSidInput(e.target.value)}
                       className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
@@ -1610,20 +1610,8 @@ const loadData = async () => {
                     View My Rota Schedule
                   </button>
                 </form>
-
-                <div className="pt-4 border-t border-amber-100 dark:border-slate-800 text-xs text-slate-400 space-y-2">
-                  <p className="font-semibold text-slate-500">Quick Test Numeric SIDs:</p>
-                  <div className="flex flex-wrap justify-center gap-2 font-mono text-[11px]">
-                    <button onClick={() => setPortalSidInput('31056')} className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold">
-                      31056 (Admin Access)
-                    </button>
-                    <button onClick={() => setPortalSidInput('1002')} className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-bold">
-                      1002 (Regular Sevak)
-                    </button>
-                  </div>
-                </div>
               </div>
-            ) : (
+          ) : (
               <div className="space-y-6">
                 {/* Sevak Logged-in Header */}
                 <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-4`}>
