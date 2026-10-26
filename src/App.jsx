@@ -965,21 +965,18 @@ useEffect(() => {
         : [...submission.assignedShifts, shiftId]
     };
 
-    // Save the updated shift to Supabase
-    const { error: shiftError } = await supabase
-      .from('shifts')
-      .update(shiftToDb(updatedShift))
-      .eq('id', shiftId);
-
-    if (shiftError) throw shiftError;
-
-    // Save the updated sevak to Supabase
-    const { error: submissionError } = await supabase
-      .from('submissions')
-      .update(submissionToDb(updatedSubmission))
-      .eq('id', submissionId);
-
-    if (submissionError) throw submissionError;
+    // Securely save the allocation through Supabase
+    const { data, error } = await supabase.rpc('admin_assign_volunteer', {
+      input_admin_sid: loggedInSevak.sid,
+      input_submission_id: submissionId,
+      input_shift_id: shiftId
+    });
+    
+    if (error) throw error;
+    
+    if (!data?.success) {
+      throw new Error(data?.message || 'Allocation failed');
+    }
 
     // Update what is shown on screen
     setShifts(prevShifts =>
@@ -999,7 +996,11 @@ useEffect(() => {
     alert('The allocation could not be saved. Please try again.');
 
     // Reload the real database data if something went wrong
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
   
