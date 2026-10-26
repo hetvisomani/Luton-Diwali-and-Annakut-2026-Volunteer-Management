@@ -353,6 +353,41 @@ const loadData = async () => {
   }
 };
 
+  const loadAdminData = async (adminSid) => {
+  try {
+    setIsLoadingData(true);
+
+    const { data, error } = await supabase.rpc('get_admin_data', {
+      input_sid: adminSid
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.message || 'Admin access denied');
+    }
+
+    setSubmissions(
+      (data.submissions || []).map(submissionFromDb)
+    );
+
+    setShifts(
+      (data.shifts || []).map(shiftFromDb)
+    );
+
+    return true;
+
+  } catch (error) {
+    console.error('Error loading admin data:', error);
+    return false;
+
+  } finally {
+    setIsLoadingData(false);
+  }
+};
+
 // Load database data when the website first opens
 useEffect(() => {
   loadData();
