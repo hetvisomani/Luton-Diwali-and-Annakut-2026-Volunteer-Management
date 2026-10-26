@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, 
   Calendar, 
@@ -28,6 +28,7 @@ import {
   Filter,
   Baby
 } from 'lucide-react';
+import { supabase } from './supabaseClient';
 
 const DEPARTMENTS = [
   "Annakut Setup/Windup",
