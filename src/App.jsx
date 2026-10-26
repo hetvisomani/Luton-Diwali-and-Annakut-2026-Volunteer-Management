@@ -2325,6 +2325,7 @@ const loadData = async () => {
                 >
                   {totalCapacityStats.totalReq}
                 </div>
+              </div>
 
               <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
                 <div className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Allocated Shifts</div>
@@ -2467,8 +2468,6 @@ const loadData = async () => {
               </div>
             </div>
           </div>
-        )}
-
         )}
 
       </main>
