@@ -1119,69 +1119,30 @@ useEffect(() => {
 
   const handleDeleteVolunteer = async (submissionId) => {
   try {
-    // Find every shift this sevak is currently part of
-    const affectedShifts = shifts.filter(
-      shift =>
-        shift.assignedVolunteers.includes(submissionId) ||
-        shift.leadVolunteerId === submissionId
-    );
+    const { data, error } = await supabase.rpc('admin_delete_sevak', {
+      input_admin_sid: loggedInSevak.sid,
+      input_submission_id: submissionId
+    });
 
-    // Remove the sevak from those shifts
-    const updatedAffectedShifts = affectedShifts.map(shift => ({
-      ...shift,
-      assignedVolunteers: shift.assignedVolunteers.filter(
-        id => id !== submissionId
-      ),
-      leadVolunteerId:
-        shift.leadVolunteerId === submissionId
-          ? null
-          : shift.leadVolunteerId
-    }));
+    if (error) throw error;
 
-    // Save the cleaned-up shifts to Supabase
-    if (updatedAffectedShifts.length > 0) {
-      const { error: shiftsError } = await supabase
-        .from('shifts')
-        .upsert(
-          updatedAffectedShifts.map(shiftToDb),
-          { onConflict: 'id' }
-        );
-
-      if (shiftsError) throw shiftsError;
+    if (!data?.success) {
+      throw new Error(data?.message || 'Sevak deletion failed');
     }
 
-    // Delete the sevak from Supabase
-    const { error: submissionError } = await supabase
-      .from('submissions')
-      .delete()
-      .eq('id', submissionId);
-
-    if (submissionError) throw submissionError;
-
-    // Update the shifts shown on screen
     setShifts(prevShifts =>
-      prevShifts.map(shift => {
-        if (
-          !shift.assignedVolunteers.includes(submissionId) &&
-          shift.leadVolunteerId !== submissionId
-        ) {
-          return shift;
-        }
-
-        return {
-          ...shift,
-          assignedVolunteers: shift.assignedVolunteers.filter(
-            id => id !== submissionId
-          ),
-          leadVolunteerId:
-            shift.leadVolunteerId === submissionId
-              ? null
-              : shift.leadVolunteerId
-        };
-      })
+      prevShifts.map(shift => ({
+        ...shift,
+        assignedVolunteers: shift.assignedVolunteers.filter(
+          id => id !== submissionId
+        ),
+        leadVolunteerId:
+          shift.leadVolunteerId === submissionId
+            ? null
+            : shift.leadVolunteerId
+      }))
     );
 
-    // Remove the sevak from the screen
     setSubmissions(prevSubs =>
       prevSubs.filter(sub => sub.id !== submissionId)
     );
@@ -1190,61 +1151,47 @@ useEffect(() => {
     console.error('Error deleting sevak:', error);
     alert('The sevak could not be deleted. Please try again.');
 
-    // Restore whatever is actually stored in Supabase
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
-
+  
   const handleDeleteShiftFromMasterRota = async (shiftId) => {
   const shift = shifts.find(s => s.id === shiftId);
   if (!shift) return;
 
   try {
-    // Work out what every sevak should look like after this shift is removed
-    const updatedSubmissions = submissions.map(sub => {
-      const updatedAssignedShifts = sub.assignedShifts.filter(
-        id => id !== shiftId
-      );
-
-      return {
-        ...sub,
-        assignedShifts: updatedAssignedShifts,
-        status:
-          updatedAssignedShifts.length === 0
-            ? 'Pending'
-            : sub.status
-      };
+    const { data, error } = await supabase.rpc('admin_delete_shift', {
+      input_admin_sid: loggedInSevak.sid,
+      input_shift_id: shiftId
     });
 
-    // Only save sevaks who were actually assigned to this shift
-    const affectedSubmissions = updatedSubmissions.filter(sub =>
-      submissions
-        .find(original => original.id === sub.id)
-        ?.assignedShifts.includes(shiftId)
-    );
+    if (error) throw error;
 
-    // Update those sevaks in Supabase
-    if (affectedSubmissions.length > 0) {
-      const { error: submissionsError } = await supabase
-        .from('submissions')
-        .upsert(
-          affectedSubmissions.map(submissionToDb),
-          { onConflict: 'id' }
-        );
-
-      if (submissionsError) throw submissionsError;
+    if (!data?.success) {
+      throw new Error(data?.message || 'Shift deletion failed');
     }
 
-    // Delete the shift from Supabase
-    const { error: shiftError } = await supabase
-      .from('shifts')
-      .delete()
-      .eq('id', shiftId);
+    setSubmissions(prev =>
+      prev.map(sub => {
+        const updatedAssignedShifts = sub.assignedShifts.filter(
+          id => id !== shiftId
+        );
 
-    if (shiftError) throw shiftError;
+        return {
+          ...sub,
+          assignedShifts: updatedAssignedShifts,
+          status:
+            updatedAssignedShifts.length === 0
+              ? 'Pending'
+              : 'Assigned'
+        };
+      })
+    );
 
-    // Update what is shown on screen
-    setSubmissions(updatedSubmissions);
     setShifts(prev =>
       prev.filter(s => s.id !== shiftId)
     );
@@ -1253,10 +1200,14 @@ useEffect(() => {
     console.error('Error deleting shift:', error);
     alert('The shift could not be deleted. Please try again.');
 
-    // Restore the real database data
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
+  
   const handleCreateNewShift = async (e) => {
   e.preventDefault();
 
@@ -1274,20 +1225,21 @@ useEffect(() => {
   };
 
   try {
-    // Save the new shift to Supabase
-    const { error } = await supabase
-      .from('shifts')
-      .insert([shiftToDb(createdShift)]);
+    const { data, error } = await supabase.rpc('admin_create_shift', {
+      input_admin_sid: loggedInSevak.sid,
+      input_shift: shiftToDb(createdShift)
+    });
 
     if (error) throw error;
 
-    // Add the new shift to what is shown on screen
+    if (!data?.success) {
+      throw new Error(data?.message || 'Shift creation failed');
+    }
+
     setShifts(prev => [...prev, createdShift]);
 
-    // Close the modal
     setShowAddShiftModal(false);
 
-    // Reset the form
     setNewShift({
       department: DEPARTMENTS[0],
       day: DAYS[0].id,
@@ -1300,41 +1252,43 @@ useEffect(() => {
     console.error('Error creating shift:', error);
     alert('The new shift could not be saved. Please try again.');
 
-    // Reload the real database data
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
-
+  
   const handleSaveShiftEdit = async (e) => {
-  e.preventDefault();
-
-  if (!editingShift) return;
-
-  try {
-    // Save the edited shift to Supabase
-    const { error } = await supabase
-      .from('shifts')
-      .update(shiftToDb(editingShift))
-      .eq('id', editingShift.id);
-
-    if (error) throw error;
-
-    // Update what is shown on screen
-    setShifts(prev =>
-      prev.map(s =>
-        s.id === editingShift.id ? editingShift : s
-      )
+    e.preventDefault();
+    if (!editingShift) return;
+    try {
+      const { data, error } = await supabase.rpc('admin_update_shift', {
+        input_admin_sid: loggedInSevak.sid,
+        input_shift: shiftToDb(editingShift)
+      });
+      if (error) throw error;
+      if (!data?.success) {
+        throw new Error(data?.message || 'Shift update failed');
+      }
+      setShifts(prev =>
+        prev.map(s =>
+          s.id === editingShift.id ? editingShift : s
+        )
     );
 
-    // Close the edit window
     setEditingShift(null);
 
   } catch (error) {
     console.error('Error saving shift:', error);
     alert('The shift changes could not be saved. Please try again.');
 
-    // Reload the real data from Supabase
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
 
