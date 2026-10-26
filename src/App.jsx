@@ -25,7 +25,8 @@ import {
   Upload,
   FileText,
   Check,
-  Filter
+  Filter,
+  Baby
 } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -117,15 +118,23 @@ const initialSubmissions = [
     id: 'sub-1',
     sid: 'SID-31056',
     fullName: 'Hetvi Somani (Admin)',
-    email: 'jay.patel@example.com',
+    email: 'hetvi@example.com',
     mandal: 'Yuvati Mandal (ages 22-35)',
+    primaryPreferredSeva: 'Housekeeping',
+    otherPreferredSeva: ['Parking', 'Annakut Setup/Windup'],
     preferredDepartments: ['Housekeeping', 'Parking', 'Annakut Setup/Windup'],
+    diwaliTime: '9am to 1pm, 1pm to 5pm',
+    annakutTime: '5pm to 10pm',
+    setupMondayTime: '5pm to 10pm',
+    windupTuesdayTime: '9pm to 11pm',
+    dbsCrecheStatus: 'Yes',
+    crecheAvailableTimes: '9am to 1pm',
     availability: {
       diwali: ['9am to 1pm', '1pm to 5pm'],
       setup_windup: ['5pm to 10pm'],
       annakut: ['5pm to 10pm']
     },
-    customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+    crecheAvailability: 'Yes',
     status: 'Assigned',
     assignedShifts: ['shift-1']
   },
@@ -135,13 +144,21 @@ const initialSubmissions = [
     fullName: 'Priya Shah',
     email: 'priya.shah@example.com',
     mandal: 'Yuvati Mandal (ages 22-35)',
+    primaryPreferredSeva: 'Welcome',
+    otherPreferredSeva: ['Catering/Food stalls', 'Annakut Setup/Windup'],
     preferredDepartments: ['Welcome', 'Catering/Food stalls', 'Annakut Setup/Windup'],
+    diwaliTime: '9am to 1pm, 1pm to 5pm',
+    annakutTime: '1pm to 5pm',
+    setupMondayTime: '9am to 1pm',
+    windupTuesdayTime: 'N/A',
+    dbsCrecheStatus: 'No',
+    crecheAvailableTimes: 'N/A',
     availability: {
       diwali: ['9am to 1pm', '1pm to 5pm'],
       setup_windup: ['9am to 1pm', '1pm to 5pm'],
       annakut: ['1pm to 5pm']
     },
-    customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+    crecheAvailability: 'No',
     status: 'Assigned',
     assignedShifts: ['shift-1', 'shift-16']
   },
@@ -151,13 +168,21 @@ const initialSubmissions = [
     fullName: 'Anil Kumar',
     email: 'anil.k@example.com',
     mandal: 'Sanyukta Mandal (ages 36+)',
+    primaryPreferredSeva: 'Security',
+    otherPreferredSeva: ['Parking'],
     preferredDepartments: ['Security', 'Parking'],
+    diwaliTime: '1pm to 5pm',
+    annakutTime: '9am to 1pm, 1pm to 5pm',
+    setupMondayTime: '5pm to 10pm',
+    windupTuesdayTime: '5pm to 10pm',
+    dbsCrecheStatus: 'No',
+    crecheAvailableTimes: 'N/A',
     availability: {
       diwali: ['1pm to 5pm'],
       setup_windup: ['5pm to 10pm'],
       annakut: ['9am to 1pm', '1pm to 5pm']
     },
-    customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+    crecheAvailability: 'No',
     status: 'Assigned',
     assignedShifts: ['shift-2']
   },
@@ -167,13 +192,21 @@ const initialSubmissions = [
     fullName: 'Neha Sharma',
     email: 'neha.s@example.com',
     mandal: 'Kishori Mandal (year 9 - age 21)',
+    primaryPreferredSeva: 'Mandir Shop',
+    otherPreferredSeva: ['Welcome'],
     preferredDepartments: ['Mandir Shop', 'Welcome'],
+    diwaliTime: '5pm to 10pm',
+    annakutTime: '9am to 1pm, 1pm to 5pm',
+    setupMondayTime: '9am to 1pm',
+    windupTuesdayTime: '5pm to 9pm',
+    dbsCrecheStatus: 'Yes',
+    crecheAvailableTimes: '1pm to 5pm',
     availability: {
       diwali: ['5pm to 10pm'],
       setup_windup: ['9am to 1pm'],
-      annakut: ['All Day']
+      annakut: ['9am to 1pm', '1pm to 5pm']
     },
-    customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+    crecheAvailability: 'Yes',
     status: 'Pending',
     assignedShifts: []
   }
@@ -221,6 +254,9 @@ export default function App() {
   const [editingShift, setEditingShift] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
+
+  // Edit Sevak Modal state
+  const [editingSevak, setEditingSevak] = useState(null);
 
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -288,8 +324,20 @@ export default function App() {
         const cleanSid = sidRaw.toUpperCase().startsWith('SID-') ? sidRaw.toUpperCase() : `SID-${sidRaw}`;
         const mandal = item.mandal || item['mandal name'] || 'Yuvak Mandal (ages 22-35)';
         
-        const deptsRaw = item['preferred departments'] || item['departments'] || item['dept'] || item['department'] || '';
-        const preferredDepartments = typeof deptsRaw === 'string' ? deptsRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : ['Annakut Setup/Windup'];
+        const primarySeva = item['primary preferred seva'] || item['primary preferred department'] || item['primary seva'] || item['preferred seva'] || '';
+        const otherSevaRaw = item['other preferred seva'] || item['other preferred departments'] || item['other seva'] || '';
+        const otherSevaArr = typeof otherSevaRaw === 'string' ? otherSevaRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : [];
+
+        const deptsRaw = item['preferred departments'] || item['preferred seva'] || item['departments'] || item['dept'] || item['department'] || '';
+        const preferredDepartments = typeof deptsRaw === 'string' ? deptsRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : (primarySeva ? [primarySeva, ...otherSevaArr] : ['Annakut Setup/Windup']);
+
+        const diwaliTimes = item['diwali available time'] || item['diwali time'] || item['diwali'] || '';
+        const annakutTimes = item['annakut available time'] || item['annakut time'] || item['annakut'] || '';
+        const setupMonday = item['availability for annakut setup monday 9th november'] || item['annakut setup monday 9th november'] || item['setup monday'] || item['setup'] || '';
+        const windupTuesday = item['availability for annakut setup windup tuesday 10th november'] || item['annakut setup windup tuesday 10th november'] || item['windup tuesday'] || item['windup'] || '';
+
+        const dbsCreche = item['dbs check & availabile for crèche'] || item['dbs check & available for creche'] || item['dbs check'] || item['availability for crèche'] || item['creche'] || 'No';
+        const crecheTimes = item['if yes times available for crèche'] || item['times available for crèche'] || item['creche times'] || 'N/A';
 
         return {
           id: `sub-excel-${Date.now()}-${idx}`,
@@ -297,13 +345,21 @@ export default function App() {
           fullName: name,
           email: item.email || item['email address'] || '',
           mandal: mandal,
+          primaryPreferredSeva: primarySeva || preferredDepartments[0] || 'Unassigned',
+          otherPreferredSeva: otherSevaArr,
           preferredDepartments: preferredDepartments.length > 0 ? preferredDepartments : ['Annakut Setup/Windup'],
+          diwaliTime: diwaliTimes || '9am to 1pm',
+          annakutTime: annakutTimes || '5pm to 10pm',
+          setupMondayTime: setupMonday || '5pm to 10pm',
+          windupTuesdayTime: windupTuesday || 'N/A',
+          dbsCrecheStatus: dbsCreche,
+          crecheAvailableTimes: crecheTimes,
           availability: {
-            diwali: ['9am to 1pm', '1pm to 5pm'],
-            setup_windup: ['1pm to 5pm', '5pm to 10pm'],
-            annakut: ['5pm to 10pm']
+            diwali: diwaliTimes ? diwaliTimes.split(/;|,/).map(t => t.trim()) : ['9am to 1pm'],
+            setup_windup: setupMonday ? setupMonday.split(/;|,/).map(t => t.trim()) : ['1pm to 5pm'],
+            annakut: annakutTimes ? annakutTimes.split(/;|,/).map(t => t.trim()) : ['5pm to 10pm']
           },
-          customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+          crecheAvailability: dbsCreche,
           status: 'Pending',
           assignedShifts: []
         };
@@ -347,9 +403,17 @@ export default function App() {
           fullName: item.fullName || item.Name || 'New Sevak',
           email: item.email || item.Email || '',
           mandal: item.mandal || 'Yuvak Mandal (ages 22-35)',
+          primaryPreferredSeva: item.primaryPreferredSeva || 'Unassigned',
+          otherPreferredSeva: item.otherPreferredSeva || [],
           preferredDepartments: item.preferredDepartments || ['No preference'],
+          diwaliTime: item.diwaliTime || 'All Day',
+          annakutTime: item.annakutTime || 'All Day',
+          setupMondayTime: item.setupMondayTime || 'All Day',
+          windupTuesdayTime: item.windupTuesdayTime || 'All Day',
+          dbsCrecheStatus: item.dbsCrecheStatus || 'No',
+          crecheAvailableTimes: item.crecheAvailableTimes || 'N/A',
           availability: item.availability || { diwali: ['All Day'], setup_windup: ['All Day'], annakut: ['All Day'] },
-          customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+          crecheAvailability: item.dbsCrecheStatus || 'No',
           status: 'Pending',
           assignedShifts: []
         }));
@@ -521,6 +585,13 @@ export default function App() {
     if (!editingShift) return;
     setShifts(prev => prev.map(s => s.id === editingShift.id ? editingShift : s));
     setEditingShift(null);
+  };
+
+  const handleSaveSevakDetails = (e) => {
+    e.preventDefault();
+    if (!editingSevak) return;
+    setSubmissions(prev => prev.map(s => s.id === editingSevak.id ? editingSevak : s));
+    setEditingSevak(null);
   };
 
   const totalCapacityStats = useMemo(() => {
@@ -766,7 +837,7 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Sevak Logged-in Header with Fixed Contrast */}
+                {/* Sevak Logged-in Header */}
                 <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-4`}>
                   <div className="flex items-start justify-between">
                     <div>
@@ -892,7 +963,7 @@ export default function App() {
                     Microsoft Excel Responses Data Connector
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Extract Sevak responses directly from your MS Forms Excel sheet (Name, SID, Mandal, Preferred Seva & Time) to automatically populate the Volunteer Allocation list.
+                    Extract Sevak responses directly from your MS Forms Excel sheet (Name, SID, Mandal, Preferred Seva & Time slots) to automatically populate the Volunteer Allocation list.
                   </p>
                 </div>
 
@@ -932,7 +1003,7 @@ export default function App() {
                       {excelFile ? `Selected File: ${excelFile}` : 'Click or drop your Excel CSV / Response export file here'}
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      Supports MS Forms exported spreadsheets containing Name, SID, Mandal & Department preferences
+                      Supports MS Forms exported spreadsheets containing Name, SID, Mandal, Preferred Seva & Time Slots
                     </p>
                   </div>
                 </div>
@@ -942,14 +1013,14 @@ export default function App() {
               <div className="space-y-3 pt-2">
                 <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
                   <span>Option 2: Copy & Paste Table Cells directly from Excel</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Headers: Name | SID | Mandal | Preferred Departments</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Headers: Name | SID | Mandal | Preferred Seva | Diwali | Annakut | Setup | Creche</span>
                 </h3>
 
                 <textarea
                   rows={5}
                   value={excelPasteData}
                   onChange={e => setExcelPasteData(e.target.value)}
-                  placeholder={`Paste rows copied from Excel here...\n\nExample format:\nFull Name\tSID\tMandal\tPreferred Departments\nJayesh Patel\t31056\tYuvak Mandal\tParking, Catering\nNeha Shah\t1002\tYuvati Mandal\tWelcome, Housekeeping`}
+                  placeholder={`Paste rows copied from Excel here...\n\nExample format:\nFull Name\tSID\tMandal\tPreferred Seva\tDiwali Available Time\tAnnakut Available Time\tSetup\tCrèche\nJayesh Patel\t31056\tYuvak Mandal\tParking, Catering\t9am to 1pm\t5pm to 10pm\t5pm to 10pm\tYes`}
                   className={`w-full p-4 rounded-2xl text-xs font-mono border outline-none ${
                     darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-900'
                   }`}
@@ -1024,7 +1095,7 @@ export default function App() {
                     darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
                   }`}
                 >
-                  <option value="ALL">All Volunteers</option>
+                  <option value="ALL">All Statuses / Mandals</option>
                   <option value="Pending">Pending Only</option>
                   <option value="Assigned">Assigned Only</option>
                   <option value="Kishore">Kishore Mandal</option>
@@ -1054,7 +1125,7 @@ export default function App() {
                     key={sub.id}
                     className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border ${
                       darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'
-                    } shadow-sm space-y-3 relative`}
+                    } shadow-sm space-y-4 relative`}
                   >
                     <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div className="space-y-1 w-full">
@@ -1062,12 +1133,22 @@ export default function App() {
                           <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
                             {sub.fullName}
                           </h3>
-                          <button
-                            onClick={() => handleDeleteVolunteer(sub.id)}
-                            className="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingSevak(sub)}
+                              title="Edit Preferences & Availability"
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 rounded-lg transition-all flex items-center gap-1 text-xs font-bold"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Edit Details</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVolunteer(sub.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -1086,6 +1167,83 @@ export default function App() {
                         <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold pt-1">
                           {sub.mandal}
                         </p>
+                      </div>
+                    </div>
+
+                    {/* MANUALLY EDITABLE / VIEWABLE PREFERENCES & AVAILABILITY */}
+                    <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-slate-800/50 border border-amber-200/60 dark:border-slate-700/60 text-xs space-y-2.5">
+                      <div className="flex items-center justify-between font-bold text-slate-700 dark:text-slate-300 border-b border-amber-200/40 dark:border-slate-700/40 pb-1.5">
+                        <span className="text-[11px] uppercase tracking-wider text-amber-800 dark:text-amber-400 font-extrabold">Sevak Details & Availability</span>
+                        <button
+                          onClick={() => setEditingSevak(sub)}
+                          className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3 h-3" /> Edit
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Primary Preferred Seva:</strong>
+                          <span className="font-bold text-amber-700 dark:text-amber-300">
+                            {sub.primaryPreferredSeva || sub.preferredDepartments?.[0] || 'Not specified'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Other Preferred Seva:</strong>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {sub.otherPreferredSeva?.length > 0 
+                              ? sub.otherPreferredSeva.join(', ') 
+                              : (sub.preferredDepartments?.slice(1).join(', ') || 'None')}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Diwali Available Time:</strong>
+                          <span className="text-slate-800 dark:text-slate-200">
+                            {sub.diwaliTime || sub.availability?.diwali?.join(', ') || 'Not specified'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Annakut Available Time:</strong>
+                          <span className="text-slate-800 dark:text-slate-200">
+                            {sub.annakutTime || sub.availability?.annakut?.join(', ') || 'Not specified'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Annakut Setup (Mon 9th Nov):</strong>
+                          <span className="text-slate-800 dark:text-slate-200">
+                            {sub.setupMondayTime || sub.availability?.setup_windup?.join(', ') || 'Not specified'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Annakut Windup (Tue 10th Nov):</strong>
+                          <span className="text-slate-800 dark:text-slate-200">
+                            {sub.windupTuesdayTime || 'Not specified'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">DBS Check & Crèche Available:</strong>
+                          <span className={`font-bold ${
+                            (sub.dbsCrecheStatus || sub.crecheAvailability) === 'Yes' 
+                              ? 'text-emerald-600 dark:text-emerald-400' 
+                              : 'text-slate-600 dark:text-slate-400'
+                          }`}>
+                            {sub.dbsCrecheStatus || sub.crecheAvailability || 'No'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong className="text-slate-500 dark:text-slate-400 block">Crèche Available Times:</strong>
+                          <span className="text-slate-800 dark:text-slate-200">
+                            {sub.crecheAvailableTimes || 'N/A'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -1480,6 +1638,174 @@ export default function App() {
         )}
 
       </main>
+
+      {/* EDIT SEVAK DETAILS MODAL */}
+      {editingSevak && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className={`w-full max-w-lg p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-amber-200 text-slate-800'} shadow-2xl space-y-4 my-8 max-h-[90vh] overflow-y-auto`}>
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold">Edit Sevak Details & Preferences</h3>
+                <p className="text-xs text-slate-400">{editingSevak.fullName} ({editingSevak.sid})</p>
+              </div>
+              <button onClick={() => setEditingSevak(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSevakDetails} className="space-y-4 text-xs font-medium">
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={editingSevak.fullName}
+                  onChange={e => setEditingSevak({ ...editingSevak, fullName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Primary Preferred Seva</label>
+                <select
+                  value={editingSevak.primaryPreferredSeva || ''}
+                  onChange={e => setEditingSevak({ ...editingSevak, primaryPreferredSeva: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                >
+                  <option value="" className="dark:bg-slate-900">Select Primary Preferred Department</option>
+                  {DEPARTMENTS.map(dept => (
+                    <option key={dept} value={dept} className="dark:bg-slate-900">{dept}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Other Preferred Seva Departments (comma separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Parking, Housekeeping, Catering/Food stalls"
+                  value={editingSevak.otherPreferredSeva ? editingSevak.otherPreferredSeva.join(', ') : (editingSevak.preferredDepartments?.slice(1).join(', ') || '')}
+                  onChange={e => setEditingSevak({ 
+                    ...editingSevak, 
+                    otherPreferredSeva: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Diwali Available Time</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 9am to 1pm, 1pm to 5pm"
+                  value={editingSevak.diwaliTime || (editingSevak.availability?.diwali ? editingSevak.availability.diwali.join(', ') : '')}
+                  onChange={e => setEditingSevak({
+                    ...editingSevak,
+                    diwaliTime: e.target.value,
+                    availability: {
+                      ...editingSevak.availability,
+                      diwali: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                    }
+                  })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Annakut Available Time</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1pm to 5pm, 5pm to 10pm"
+                  value={editingSevak.annakutTime || (editingSevak.availability?.annakut ? editingSevak.availability.annakut.join(', ') : '')}
+                  onChange={e => setEditingSevak({
+                    ...editingSevak,
+                    annakutTime: e.target.value,
+                    availability: {
+                      ...editingSevak.availability,
+                      annakut: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                    }
+                  })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Availability for Annakut Setup (Monday 9th November)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 9am to 1pm, 5pm to 10pm"
+                  value={editingSevak.setupMondayTime || (editingSevak.availability?.setup_windup ? editingSevak.availability.setup_windup.join(', ') : '')}
+                  onChange={e => setEditingSevak({
+                    ...editingSevak,
+                    setupMondayTime: e.target.value,
+                    availability: {
+                      ...editingSevak.availability,
+                      setup_windup: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                    }
+                  })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Availability for Annakut Windup (Tuesday 10th November)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 5pm to 10pm, 9pm to 11pm"
+                  value={editingSevak.windupTuesdayTime || ''}
+                  onChange={e => setEditingSevak({
+                    ...editingSevak,
+                    windupTuesdayTime: e.target.value
+                  })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">DBS Check & Available for Crèche</label>
+                <select
+                  value={editingSevak.dbsCrecheStatus || editingSevak.crecheAvailability || 'No'}
+                  onChange={e => setEditingSevak({ 
+                    ...editingSevak, 
+                    dbsCrecheStatus: e.target.value,
+                    crecheAvailability: e.target.value 
+                  })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                >
+                  <option value="Yes" className="dark:bg-slate-900">Yes</option>
+                  <option value="No" className="dark:bg-slate-900">No</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">If Yes, Times Available for Crèche</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 9am to 1pm, 1pm to 5pm"
+                  value={editingSevak.crecheAvailableTimes || ''}
+                  onChange={e => setEditingSevak({ ...editingSevak, crecheAvailableTimes: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border bg-transparent outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingSevak(null)}
+                  className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold bg-amber-500 text-white rounded-xl shadow-md hover:bg-amber-600"
+                >
+                  Save Details
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Shift Modal */}
       {showAddShiftModal && (
