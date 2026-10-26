@@ -1344,13 +1344,15 @@ useEffect(() => {
   if (!editingSevak) return;
 
   try {
-    // Save the edited sevak details to Supabase
-    const { error } = await supabase
-      .from('submissions')
-      .update(submissionToDb(editingSevak))
-      .eq('id', editingSevak.id);
-
+    // Securely save the edited sevak details through Supabase
+    const { data, error } = await supabase.rpc('admin_update_sevak', {
+      input_admin_sid: loggedInSevak.sid,
+      input_sevak: submissionToDb(editingSevak)
+    });
     if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || 'Sevak update failed');
+    }
 
     // Update what is shown on screen
     setSubmissions(prev =>
@@ -1367,7 +1369,11 @@ useEffect(() => {
     alert('The sevak details could not be saved. Please try again.');
 
     // Reload the real data from Supabase
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
 
