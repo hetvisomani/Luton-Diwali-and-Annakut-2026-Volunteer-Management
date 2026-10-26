@@ -45,8 +45,8 @@ const DEPARTMENTS = [
   "Sampark",
   "Welcome",
   "Flow management",
-  "Fun Zone Stalls"
-  "Mehndi, Tatoo, Face Painting"
+  "Fun Zone Stalls",
+  "Mehndi, Tattoo, Face Painting"
 ];
 
 const TIME_SLOTS = [
