@@ -1086,13 +1086,16 @@ useEffect(() => {
           : submissionId
     };
 
-    // Save to Supabase
-    const { error } = await supabase
-      .from('shifts')
-      .update(shiftToDb(updatedShift))
-      .eq('id', shiftId);
-
+    // Securely save the Team Lead change through Supabase
+    const { data, error } = await supabase.rpc('admin_toggle_team_lead', {
+      input_admin_sid: loggedInSevak.sid,
+      input_submission_id: submissionId,
+      input_shift_id: shiftId
+    });
     if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || 'Team Lead change failed');
+    }
 
     // Update what is shown on screen
     setShifts(prevShifts =>
@@ -1106,7 +1109,11 @@ useEffect(() => {
     alert('The team lead could not be saved. Please try again.');
 
     // Restore the real database data if something went wrong
-    await loadData();
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
   }
 };
 
