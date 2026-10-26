@@ -282,26 +282,46 @@ export default function App() {
         return;
       }
 
+      const findColValue = (row, keywords) => {
+        const key = Object.keys(row).find(k => keywords.some(kw => k.toLowerCase().includes(kw.toLowerCase())));
+        return key ? row[key] : '';
+      };
+
       const newSevaks = parsedRows.map((item, idx) => {
-        const name = item.name || item['full name'] || item['fullname'] || item['sevak name'] || `Sevak ${submissions.length + idx + 1}`;
-        const sidRaw = item.sid || item['satsangi id'] || item['id'] || `SID-${Math.floor(1000 + Math.random() * 9000)}`;
+        const name = findColValue(item, ['full name', 'fullname', 'sevak name', 'name']) || `Sevak ${submissions.length + idx + 1}`;
+        const sidRaw = findColValue(item, ['satsangi id', 'sid', 'id']) || `SID-${Math.floor(1000 + Math.random() * 9000)}`;
         const cleanSid = sidRaw.toUpperCase().startsWith('SID-') ? sidRaw.toUpperCase() : `SID-${sidRaw}`;
-        const mandal = item.mandal || item['mandal name'] || 'Yuvak Mandal (ages 22-35)';
+        const mandal = findColValue(item, ['mandal']) || 'Yuvak Mandal (ages 22-35)';
         
-        const deptsRaw = item['preferred departments'] || item['departments'] || item['dept'] || item['department'] || '';
-        const preferredDepartments = typeof deptsRaw === 'string' ? deptsRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : ['Annakut Setup/Windup'];
+        // Extract all preferences and detailed availability columns from CSV
+        const deptsRaw = findColValue(item, ['preferred department', 'department', 'dept', 'seva preference', 'seva']) || '';
+        const preferredDepartments = typeof deptsRaw === 'string' && deptsRaw.trim() 
+          ? deptsRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) 
+          : ['Annakut Setup/Windup'];
+
+        const diwaliTime = findColValue(item, ['diwali time', 'diwali availability', 'diwali slot', 'diwali']) || '9am to 1pm, 1pm to 5pm';
+        const setupTime = findColValue(item, ['setup time', 'preparation', 'annakut setup', 'setup']) || '1pm to 5pm, 5pm to 10pm';
+        const annakutTime = findColValue(item, ['annakut time', 'annakut availability', 'annakut slot', 'annakut']) || '5pm to 10pm';
+        const crecheHelp = findColValue(item, ['creche', 'childcare', 'kids']) || '';
+
+        const parseTimeSlots = (str) => {
+          if (!str) return [];
+          if (Array.isArray(str)) return str;
+          return str.split(/;|,/).map(t => t.trim()).filter(Boolean);
+        };
 
         return {
           id: `sub-excel-${Date.now()}-${idx}`,
           sid: cleanSid,
           fullName: name,
-          email: item.email || item['email address'] || '',
+          email: findColValue(item, ['email']) || '',
           mandal: mandal,
           preferredDepartments: preferredDepartments.length > 0 ? preferredDepartments : ['Annakut Setup/Windup'],
+          crecheSupport: crecheHelp,
           availability: {
-            diwali: ['9am to 1pm', '1pm to 5pm'],
-            setup_windup: ['1pm to 5pm', '5pm to 10pm'],
-            annakut: ['5pm to 10pm']
+            diwali: parseTimeSlots(diwaliTime),
+            setup_windup: parseTimeSlots(setupTime),
+            annakut: parseTimeSlots(annakutTime)
           },
           customAvailability: { diwali: '', setup_windup: '', annakut: '' },
           status: 'Pending',
@@ -1123,26 +1143,52 @@ export default function App() {
                       )}
                     </div>
 
+                    {/* Display Extracted Preferences & Availability from CSV */}
+                    <div className="p-3 rounded-2xl bg-amber-500/5 dark:bg-slate-800/60 border border-amber-200/60 dark:border-slate-700/60 space-y-2 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
+                          Preferred Departments
+                        </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {sub.preferredDepartments?.map(dept => (
+                            <span key={dept} className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-amber-200 dark:border-slate-700 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                              {dept}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                          Stated Availability
+                        </span>
+                        <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5 mt-0.5">
+                          <div><strong>Diwali:</strong> {Array.isArray(sub.availability?.diwali) ? sub.availability.diwali.join(', ') : sub.availability?.diwali || 'N/A'}</div>
+                          <div><strong>Setup/Windup:</strong> {Array.isArray(sub.availability?.setup_windup) ? sub.availability.setup_windup.join(', ') : sub.availability?.setup_windup || 'N/A'}</div>
+                          <div><strong>Annakut:</strong> {Array.isArray(sub.availability?.annakut) ? sub.availability.annakut.join(', ') : sub.availability?.annakut || 'N/A'}</div>
+                          {sub.crecheSupport && <div><strong>Creche Support:</strong> {sub.crecheSupport}</div>}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Day then Shift Two-Step Selection */}
                     <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                        + Allocate New Rota Duty
-                      </label>
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                        Assign New Shift
+                      </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {/* Step 1: Select Day */}
                         <select
                           value={currentDay}
-                          onChange={e => setSelectedAllocationDays({ ...selectedAllocationDays, [sub.id]: e.target.value })}
-                          className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold border outline-none ${
+                          onChange={e => setSelectedAllocationDays(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                          className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-bold border outline-none ${
                             darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
                           }`}
                         >
-                          {DAYS.map(d => (
-                            <option key={d.id} value={d.id}>{d.label.split('/')[0]}</option>
+                          {DAYS.map(day => (
+                            <option key={day.id} value={day.id}>{day.label}</option>
                           ))}
                         </select>
 
-                        {/* Step 2: Select Relevant Shift for Selected Day */}
                         <select
                           onChange={e => {
                             if (e.target.value) {
@@ -1150,14 +1196,15 @@ export default function App() {
                               e.target.value = '';
                             }
                           }}
-                          className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold border outline-none ${
+                          defaultValue=""
+                          className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-bold border outline-none ${
                             darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
                           }`}
                         >
-                          <option value="">-- Select Shift --</option>
-                          {dayShifts.map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.department} ({s.timeSlot})
+                          <option value="" disabled>Select Shift...</option>
+                          {dayShifts.map(shift => (
+                            <option key={shift.id} value={shift.id}>
+                              {shift.department} ({shift.timeSlot}) - {shift.assignedVolunteers.length}/{shift.requiredVolunteers}
                             </option>
                           ))}
                         </select>
@@ -1170,11 +1217,11 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 4: MASTER ROTA */}
+        {/* SECTION 4: MASTER ROTA (ADMIN MANAGEMENT) */}
         {isAdminLoggedIn && activeTab === 'masterRota' && (
           <div className="space-y-6">
-            <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm flex flex-wrap items-center justify-between gap-3`}>
-              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className={`p-4 sm:p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4`}>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <select
                   value={selectedDeptFilter}
                   onChange={e => setSelectedDeptFilter(e.target.value)}
@@ -1182,9 +1229,9 @@ export default function App() {
                     darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
                   }`}
                 >
-                  <option value="ALL">All Departments ({DEPARTMENTS.length})</option>
-                  {DEPARTMENTS.map(d => (
-                    <option key={d} value={d}>{d}</option>
+                  <option value="ALL">All Departments</option>
+                  {DEPARTMENTS.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
                   ))}
                 </select>
 
@@ -1196,132 +1243,124 @@ export default function App() {
                   }`}
                 >
                   <option value="ALL">All Days</option>
-                  {DAYS.map(d => (
-                    <option key={d.id} value={d.id}>{d.label}</option>
+                  {DAYS.map(day => (
+                    <option key={day.id} value={day.id}>{day.label}</option>
                   ))}
                 </select>
               </div>
 
               <button
                 onClick={() => setShowAddShiftModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5"
+                className="py-2.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
               >
-                <Plus className="w-4 h-4" /> Add New Shift
+                <Plus className="w-4 h-4" /> Add Custom Shift
               </button>
             </div>
 
+            {/* Master Rota Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMasterShifts.map(shift => {
-                const isFull = shift.assignedVolunteers.length >= shift.requiredVolunteers;
                 const dayObj = DAYS.find(d => d.id === shift.day);
+                const leadVol = submissions.find(s => s.id === shift.leadVolunteerId);
 
                 return (
-                  <div
-                    key={shift.id}
-                    className={`p-5 rounded-3xl border transition-all ${
-                      shift.isUrgent 
-                        ? 'border-rose-500/50 bg-rose-500/5' 
-                        : darkMode 
-                          ? 'bg-slate-900 border-slate-800' 
-                          : 'bg-white border-amber-200'
-                    } shadow-sm space-y-4 relative`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                  <div key={shift.id} className={`p-5 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-4 flex flex-col justify-between`}>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
                           {shift.department}
                         </span>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1">
-                          {shift.title}
-                        </h3>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditingShift(shift)}
+                            className="p-1 text-slate-400 hover:text-amber-500 rounded-lg"
+                            title="Edit Shift Details & Time"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteShiftFromMasterRota(shift.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded-lg"
+                            title="Delete Shift"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setEditingShift(shift)}
-                          title="Edit Shift Details"
-                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-all"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {shift.title}
+                      </h3>
 
-                        <button
-                          onClick={() => handleDeleteShiftFromMasterRota(shift.id)}
-                          title="Delete Shift Completely"
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-all"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                          <span>{dayObj ? dayObj.label : shift.day}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="font-semibold">{shift.timeSlot}</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          {dayObj ? dayObj.label : shift.day}
+                      {/* Team Lead Indicator */}
+                      <div className="pt-2">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Assigned Lead
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="font-bold text-amber-600 dark:text-amber-400">{shift.timeSlot}</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          Assigned ({shift.assignedVolunteers.length}/{shift.requiredVolunteers})
-                        </span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isFull 
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        }`}>
-                          {isFull ? 'Filled' : `${shift.requiredVolunteers - shift.assignedVolunteers.length} needed`}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                        {shift.assignedVolunteers.length === 0 ? (
-                          <p className="text-[11px] text-slate-400 italic">No volunteers assigned.</p>
+                        {leadVol ? (
+                          <div className="flex items-center justify-between mt-1 p-2 rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 truncate">
+                              <Crown className="w-3.5 h-3.5 text-amber-500" />
+                              {leadVol.fullName}
+                            </span>
+                            <button
+                              onClick={() => toggleLeadVolunteer(shift.id, leadVol.id)}
+                              className="text-slate-400 hover:text-rose-500"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         ) : (
-                          shift.assignedVolunteers.map(subId => {
-                            const sub = submissions.find(s => s.id === subId);
-                            if (!sub) return null;
-                            const isLead = shift.leadVolunteerId === sub.id;
+                          <span className="text-xs text-slate-400 italic">No Lead assigned</span>
+                        )}
+                      </div>
 
-                            return (
-                              <div
-                                key={subId}
-                                className={`flex items-center justify-between p-2 rounded-xl text-xs border ${
-                                  isLead 
-                                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-amber-200' 
-                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                                }`}
-                              >
-                                <div className="flex items-center gap-1.5 truncate">
-                                  <button
-                                    onClick={() => toggleLeadVolunteer(shift.id, sub.id)}
-                                    title="Toggle Team Lead"
-                                    className={`p-1 rounded-md ${
-                                      isLead ? 'bg-amber-500 text-white' : 'text-slate-300 hover:text-amber-500'
-                                    }`}
-                                  >
-                                    <Crown className="w-3 h-3" />
-                                  </button>
-                                  <span className="font-medium truncate">{sub.fullName}</span>
+                      {/* Assigned Sevaks List */}
+                      <div className="pt-2">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Assigned Sevaks ({shift.assignedVolunteers.length}/{shift.requiredVolunteers})
+                        </span>
+                        {shift.assignedVolunteers.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No volunteers assigned.</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {shift.assignedVolunteers.map(volId => {
+                              const vol = submissions.find(s => s.id === volId);
+                              if (!vol) return null;
+                              return (
+                                <div key={volId} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs">
+                                  <span className="font-medium text-slate-800 dark:text-slate-200">{vol.fullName}</span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => toggleLeadVolunteer(shift.id, volId)}
+                                      className={`p-1 rounded-lg ${shift.leadVolunteerId === volId ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                                      title="Toggle Lead Status"
+                                    >
+                                      <Crown className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => unassignVolunteerFromShift(volId, shift.id)}
+                                      className="p-1 text-slate-400 hover:text-rose-500"
+                                      title="Remove from shift"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
-
-                                <button
-                                  onClick={() => unassignVolunteerFromShift(sub.id, shift.id)}
-                                  className="text-slate-400 hover:text-rose-500 p-1"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            );
-                          })
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1332,239 +1371,178 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 5: RAG ANALYTICS & CALENDAR MATRIX VIEW */}
+        {/* SECTION 5: RAG & CALENDAR MATRIX TAB */}
         {isAdminLoggedIn && activeTab === 'ragGaps' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-slate-400">Total Capacity Needed</div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">{totalCapacityStats.totalReq}</div>
-              </div>
-
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Allocated Shifts</div>
-                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{totalCapacityStats.totalAssigned}</div>
-              </div>
-
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-rose-500">Unfilled Gaps</div>
-                <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{totalCapacityStats.gaps}</div>
-              </div>
-
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-amber-600">Total Sevaks</div>
-                <div className="text-2xl font-black text-amber-600">{submissions.length}</div>
-              </div>
-            </div>
-
-            {/* Interactive RAG Calendar Matrix with Dept Filter */}
-            <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-6`}>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Department Filter & Summary Cards */}
+            <div className={`p-4 sm:p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-4`}>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-amber-500" /> Event RAG Calendar Schedule
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Filter by department and select day to review RAG coverage.
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-amber-500" /> RAG Capacity & Calendar Matrix
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Monitor requirement gaps and volunteer coverage across days and time slots.
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  {/* Department Filter for RAG */}
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-slate-400" />
                   <select
                     value={ragDeptFilter}
                     onChange={e => setRagDeptFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border outline-none ${
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
                       darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
                     }`}
                   >
                     <option value="ALL">All Departments</option>
-                    {DEPARTMENTS.map(d => (
-                      <option key={d} value={d}>{d}</option>
+                    {DEPARTMENTS.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
-
-                  {/* Day Navigation Tabs */}
-                  <div className="flex items-center gap-1 bg-amber-100/50 dark:bg-slate-800 p-1 rounded-2xl overflow-x-auto">
-                    {DAYS.map(day => (
-                      <button
-                        key={day.id}
-                        onClick={() => setSelectedCalendarDay(day.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                          selectedCalendarDay === day.id
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
-                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                        }`}
-                      >
-                        {day.label.split('/')[0]}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </div>
 
-              {/* RAG Legend Banner */}
-              <div className="flex flex-wrap items-center gap-4 text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-                <span className="font-bold text-slate-500">RAG Legend:</span>
-                <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Green (Full Coverage)
-                </span>
-                <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Amber (Partial)
-                </span>
-                <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Red (Unassigned)
-                </span>
+              {/* Day Tabs */}
+              <div className="flex gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                {DAYS.map(day => (
+                  <button
+                    key={day.id}
+                    onClick={() => setSelectedCalendarDay(day.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      selectedCalendarDay === day.id
+                        ? 'bg-amber-500 text-white shadow-md'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Time Slot Calendar Grid Matrix */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px]">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400">
-                      <th className="py-3 px-4 font-bold uppercase tracking-wider">Department</th>
-                      {TIME_SLOTS.map(slot => (
-                        <th key={slot} className="py-3 px-4 font-bold uppercase tracking-wider text-center">
-                          {slot}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                    {filteredRagDepartments.map(dept => {
-                      return (
-                        <tr key={dept} className="hover:bg-amber-50/40 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
-                            {dept}
-                          </td>
-                          {TIME_SLOTS.map(slot => {
-                            const shift = shifts.find(s => s.department === dept && s.day === selectedCalendarDay && s.timeSlot === slot);
-                            if (!shift) return <td key={slot} className="text-center text-slate-300">-</td>;
+            {/* Matrix View per Department */}
+            <div className="space-y-4">
+              {filteredRagDepartments.map(dept => {
+                return (
+                  <div key={dept} className={`p-4 sm:p-5 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-3`}>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
+                      <span>{dept}</span>
+                      <span className="text-xs text-slate-400 font-medium">Lead: {DEPARTMENT_LEADS[dept]?.lead || 'Unassigned'}</span>
+                    </h3>
 
-                            const assignedCount = shift.assignedVolunteers.length;
-                            const reqCount = shift.requiredVolunteers;
-                            const gap = Math.max(0, reqCount - assignedCount);
-                            const isFilled = assignedCount >= reqCount;
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {TIME_SLOTS.map(slot => {
+                        const shift = shifts.find(s => s.department === dept && s.day === selectedCalendarDay && s.timeSlot === slot);
+                        if (!shift) return null;
 
-                            return (
-                              <td key={slot} className="py-2 px-3 text-center">
-                                <div className={`p-2.5 rounded-2xl border text-center space-y-1 ${
-                                  isFilled
-                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
-                                    : assignedCount > 0
-                                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300'
-                                    : 'bg-rose-500/15 border-rose-500/40 text-rose-800 dark:text-rose-300'
-                                }`}>
-                                  <div className="font-black text-xs">
-                                    {assignedCount} / {reqCount}
-                                  </div>
-                                  <div className="text-[10px] font-bold">
-                                    {isFilled ? (
-                                      <span className="text-emerald-600 dark:text-emerald-400">100% Full</span>
-                                    ) : (
-                                      <span className="text-rose-600 dark:text-rose-400">{gap} Needed</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        const assignedCount = shift.assignedVolunteers.length;
+                        const reqCount = shift.requiredVolunteers;
+                        const pct = reqCount > 0 ? Math.round((assignedCount / reqCount) * 100) : 100;
+
+                        let ragBg = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400';
+                        if (pct < 50) ragBg = 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400';
+                        else if (pct < 100) ragBg = 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400';
+
+                        return (
+                          <div key={slot} className={`p-3.5 rounded-2xl border ${ragBg} space-y-2`}>
+                            <div className="flex items-center justify-between text-xs font-bold">
+                              <span>{slot}</span>
+                              <span className="font-mono">{assignedCount} / {reqCount} ({pct}%)</span>
+                            </div>
+
+                            <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                              <div
+                                className="h-full bg-current transition-all"
+                                style={{ width: `${Math.min(100, pct)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
       </main>
 
-      {/* Add Shift Modal */}
+      {/* Add Custom Shift Modal */}
       {showAddShiftModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-          <div className={`w-full max-w-md p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-amber-200 text-slate-800'} shadow-2xl space-y-4`}>
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold">Add New Master Shift</h3>
-              <button onClick={() => setShowAddShiftModal(false)} className="p-1 text-slate-400">
-                <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-amber-200 text-slate-900'} shadow-2xl space-y-4`}>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold">Add Custom Shift</h3>
+              <button onClick={() => setShowAddShiftModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewShift} className="space-y-3 text-xs font-medium">
+            <form onSubmit={handleCreateNewShift} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-slate-500 mb-1">Department</label>
                 <select
                   value={newShift.department}
                   onChange={e => setNewShift({ ...newShift, department: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-transparent"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
                 >
                   {DEPARTMENTS.map(d => (
-                    <option key={d} value={d} className="dark:bg-slate-900">{d}</option>
+                    <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-500 mb-1">Event Day</label>
+                <label className="block font-bold text-slate-500 mb-1">Day</label>
                 <select
                   value={newShift.day}
                   onChange={e => setNewShift({ ...newShift, day: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-transparent"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
                 >
                   {DAYS.map(d => (
-                    <option key={d.id} value={d.id} className="dark:bg-slate-900">{d.label}</option>
+                    <option key={d.id} value={d.id}>{d.label}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-500 mb-1">Shift Time Slot</label>
+                <label className="block font-bold text-slate-500 mb-1">Time Slot / Custom Time</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. 9am to 1pm or 6pm to 9pm"
                   value={newShift.timeSlot}
                   onChange={e => setNewShift({ ...newShift, timeSlot: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-transparent"
+                  placeholder="e.g. 9am to 1pm or 6pm to 9pm"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-500 mb-1">Shift Title (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Custom Shift Title"
-                  value={newShift.title}
-                  onChange={e => setNewShift({ ...newShift, title: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-500 mb-1">Required Capacity</label>
+                <label className="block font-bold text-slate-500 mb-1">Required Volunteers Capacity</label>
                 <input
                   type="number"
                   min="1"
-                  max="50"
                   value={newShift.requiredVolunteers}
                   onChange={e => setNewShift({ ...newShift, requiredVolunteers: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-transparent"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
+                  required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="pt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddShiftModal(false)}
-                  className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl"
+                  className="w-1/2 py-2.5 rounded-xl border font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold bg-amber-500 text-white rounded-xl shadow-md"
+                  className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-md"
                 >
                   Create Shift
                 </button>
@@ -1576,101 +1554,66 @@ export default function App() {
 
       {/* Edit Shift Modal */}
       {editingShift && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-          <div className={`w-full max-w-md p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-amber-200 text-slate-800'} shadow-2xl space-y-4`}>
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold">Edit Shift Details</h3>
-              <button onClick={() => setEditingShift(null)} className="p-1 text-slate-400">
-                <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-amber-200 text-slate-900'} shadow-2xl space-y-4`}>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold">Edit Shift</h3>
+              <button onClick={() => setEditingShift(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveShiftEdit} className="space-y-4">
+            <form onSubmit={handleSaveShiftEdit} className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Shift Title</label>
+                <label className="block font-bold text-slate-500 mb-1">Shift Title</label>
                 <input
                   type="text"
                   value={editingShift.title}
                   onChange={e => setEditingShift({ ...editingShift, title: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-medium border bg-transparent"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Actual Shift Time</label>
+                <label className="block font-bold text-slate-500 mb-1">Shift Time</label>
                 <input
                   type="text"
                   value={editingShift.timeSlot}
                   onChange={e => setEditingShift({ ...editingShift, timeSlot: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-medium border bg-transparent"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Required Volunteers</label>
+                <label className="block font-bold text-slate-500 mb-1">Capacity Required</label>
                 <input
                   type="number"
                   min="1"
-                  max="50"
                   value={editingShift.requiredVolunteers}
                   onChange={e => setEditingShift({ ...editingShift, requiredVolunteers: parseInt(e.target.value) || 1 })}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-medium border bg-transparent"
+                  className="w-full p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 outline-none font-medium"
+                  required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="pt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setEditingShift(null)}
-                  className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl"
+                  className="w-1/2 py-2.5 rounded-xl border font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold bg-amber-500 text-white rounded-xl"
+                  className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-md"
                 >
                   Save Changes
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* JSON Data Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-          <div className={`w-full max-w-lg p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-amber-200 text-slate-800'} shadow-2xl space-y-4`}>
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold">Import Responses (JSON)</h3>
-              <button onClick={() => setShowImportModal(false)} className="p-1 text-slate-400">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <textarea
-              rows={6}
-              value={importJsonText}
-              onChange={e => setImportJsonText(e.target.value)}
-              placeholder='Paste JSON array here...'
-              className="w-full p-3 rounded-xl text-xs font-mono border outline-none bg-transparent"
-            />
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleImportCSVData}
-                className="px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-xl"
-              >
-                Import
-              </button>
-            </div>
           </div>
         </div>
       )}
