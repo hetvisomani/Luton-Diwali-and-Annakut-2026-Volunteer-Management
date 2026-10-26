@@ -847,32 +847,56 @@ useEffect(() => {
   }
 };
 
-  const handlePortalLogin = (e) => {
-    e.preventDefault();
-    const cleanInput = portalSidInput.trim().toUpperCase().replace(/[^0-9A-Z]/g, '');
+  const handlePortalLogin = async (e) => {
+  e.preventDefault();
 
-    if (!cleanInput) {
-      setPortalMessage('Please enter your numeric Satsangi ID.');
+  const cleanInput = portalSidInput.trim();
+
+  if (!cleanInput) {
+    setPortalMessage('Please enter your numeric Satsangi ID.');
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('check_sid_login', {
+      input_sid: cleanInput
+    });
+
+    if (error) throw error;
+
+    if (!data?.success) {
+      setPortalMessage(
+        'Invalid Satsangi ID (SID). Please enter your numeric ID.'
+      );
       return;
     }
 
-    const found = submissions.find(s => {
-      const cleanSubSid = s.sid.toUpperCase().replace(/[^0-9A-Z]/g, '');
-      const numOnlySub = s.sid.replace(/\D/g, '');
-      const numOnlyInput = portalSidInput.replace(/\D/g, '');
+    const found = submissions.find(
+      s => s.id === data.sevak_id
+    );
 
-      return cleanSubSid === cleanInput || 
-             (numOnlyInput && numOnlySub === numOnlyInput);
+    if (!found) {
+      setPortalMessage(
+        'Your details could not be loaded. Please refresh and try again.'
+      );
+      return;
+    }
+
+    setLoggedInSevak({
+      ...found,
+      isAdmin: data.is_admin
     });
 
-    if (found) {
-      setLoggedInSevak(found);
-      setPortalMessage('');
-      setActiveTab('portal');
-    } else {
-      setPortalMessage('Invalid Satsangi ID (SID). Please enter your numeric ID (e.g. 1001 or 1002).');
-    }
-  };
+    setPortalMessage('');
+    setActiveTab('portal');
+
+  } catch (error) {
+    console.error('SID login error:', error);
+    setPortalMessage(
+      'Unable to log in right now. Please try again.'
+    );
+  }
+};
 
   const handleSyncMicrosoftForm = () => {
     setIsSyncing(true);
