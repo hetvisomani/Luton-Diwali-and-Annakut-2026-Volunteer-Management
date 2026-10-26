@@ -286,6 +286,41 @@ const shiftFromDb = (row) => ({
   location: row.location || '',
   isUrgent: row.is_urgent || false
 });
+// Convert a submission from the app format into Supabase format
+const submissionToDb = (submission) => ({
+  id: submission.id,
+  sid: submission.sid,
+  full_name: submission.fullName,
+  email: submission.email || '',
+  mandal: submission.mandal || '',
+  primary_preferred_seva: submission.primaryPreferredSeva || '',
+  other_preferred_seva: submission.otherPreferredSeva || [],
+  preferred_departments: submission.preferredDepartments || [],
+  diwali_time: submission.diwaliTime || '',
+  annakut_time: submission.annakutTime || '',
+  setup_monday_time: submission.setupMondayTime || '',
+  windup_tuesday_time: submission.windupTuesdayTime || '',
+  dbs_creche_status: submission.dbsCrecheStatus || 'No',
+  creche_available_times: submission.crecheAvailableTimes || 'N/A',
+  availability: submission.availability || {},
+  creche_availability: submission.crecheAvailability || 'No',
+  status: submission.status || 'Pending',
+  assigned_shifts: submission.assignedShifts || []
+});
+
+// Convert a shift from the app format into Supabase format
+const shiftToDb = (shift) => ({
+  id: shift.id,
+  department: shift.department,
+  day: shift.day,
+  title: shift.title,
+  time_slot: shift.timeSlot,
+  required_volunteers: Number(shift.requiredVolunteers) || 1,
+  assigned_volunteers: shift.assignedVolunteers || [],
+  lead_volunteer_id: shift.leadVolunteerId || null,
+  location: shift.location || '',
+  is_urgent: shift.isUrgent || false
+});
 
 // Load the latest rota and sevak data from Supabase
 const loadData = async () => {
@@ -544,30 +579,67 @@ useEffect(() => {
     }, 1000);
   };
 
-  const assignVolunteerToShift = (submissionId, shiftId) => {
-    setShifts(prevShifts => 
-      prevShifts.map(shift => {
-        if (shift.id === shiftId && !shift.assignedVolunteers.includes(submissionId)) {
-          return { ...shift, assignedVolunteers: [...shift.assignedVolunteers, submissionId] };
-        }
-        return shift;
-      })
+  const assignVolunteerToShift = async (submissionId, shiftId) => {
+  try {
+    const shift = shifts.find(s => s.id === shiftId);
+    const submission = submissions.find(s => s.id === submissionId);
+
+    if (!shift || !submission) return;
+
+    // Don't add the same sevak twice
+    if (shift.assignedVolunteers.includes(submissionId)) return;
+
+    const updatedShift = {
+      ...shift,
+      assignedVolunteers: [...shift.assignedVolunteers, submissionId]
+    };
+
+    const updatedSubmission = {
+      ...submission,
+      status: 'Assigned',
+      assignedShifts: submission.assignedShifts.includes(shiftId)
+        ? submission.assignedShifts
+        : [...submission.assignedShifts, shiftId]
+    };
+
+    // Save the updated shift to Supabase
+    const { error: shiftError } = await supabase
+      .from('shifts')
+      .update(shiftToDb(updatedShift))
+      .eq('id', shiftId);
+
+    if (shiftError) throw shiftError;
+
+    // Save the updated sevak to Supabase
+    const { error: submissionError } = await supabase
+      .from('submissions')
+      .update(submissionToDb(updatedSubmission))
+      .eq('id', submissionId);
+
+    if (submissionError) throw submissionError;
+
+    // Update what is shown on screen
+    setShifts(prevShifts =>
+      prevShifts.map(s =>
+        s.id === shiftId ? updatedShift : s
+      )
     );
 
-    setSubmissions(prevSubs =>
-      prevSubs.map(sub => {
-        if (sub.id === submissionId && !sub.assignedShifts.includes(shiftId)) {
-          return {
-            ...sub,
-            status: 'Assigned',
-            assignedShifts: [...sub.assignedShifts, shiftId]
-          };
-        }
-        return sub;
-      })
+    setSubmissions(prevSubmissions =>
+      prevSubmissions.map(s =>
+        s.id === submissionId ? updatedSubmission : s
+      )
     );
-  };
 
+  } catch (error) {
+    console.error('Error assigning volunteer:', error);
+    alert('The allocation could not be saved. Please try again.');
+
+    // Reload the real database data if something went wrong
+    await loadData();
+  }
+};
+  
   const unassignVolunteerFromShift = (submissionId, shiftId) => {
     setShifts(prevShifts =>
       prevShifts.map(shift => {
