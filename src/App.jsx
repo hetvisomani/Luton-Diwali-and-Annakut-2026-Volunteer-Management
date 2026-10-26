@@ -1031,22 +1031,18 @@ useEffect(() => {
       assignedShifts: updatedAssignedShifts,
       status: updatedAssignedShifts.length > 0 ? 'Assigned' : 'Pending'
     };
-
-    // Save the updated shift to Supabase
-    const { error: shiftError } = await supabase
-      .from('shifts')
-      .update(shiftToDb(updatedShift))
-      .eq('id', shiftId);
-
-    if (shiftError) throw shiftError;
-
-    // Save the updated sevak to Supabase
-    const { error: submissionError } = await supabase
-      .from('submissions')
-      .update(submissionToDb(updatedSubmission))
-      .eq('id', submissionId);
-
-    if (submissionError) throw submissionError;
+    
+    // Securely save the unallocation through Supabase
+    const { data, error } = await supabase.rpc('admin_unassign_volunteer', {
+      input_admin_sid: loggedInSevak.sid,
+      input_submission_id: submissionId,
+      input_shift_id: shiftId
+    });
+    
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || 'Unallocation failed');
+    }
 
     // Update what is shown on screen
     setShifts(prevShifts =>
@@ -1066,8 +1062,11 @@ useEffect(() => {
     alert('The sevak could not be unallocated. Please try again.');
 
     // Restore what is actually stored in the database
-    await loadData();
-  }
+    if (loggedInSevak?.isAdmin) {
+      await loadAdminData(loggedInSevak.sid);
+    } else {
+      await loadData();
+    }
 };
 
   const toggleLeadVolunteer = async (submissionId, shiftId) => {
