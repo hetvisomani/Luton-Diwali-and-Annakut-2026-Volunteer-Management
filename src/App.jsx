@@ -1067,6 +1067,7 @@ useEffect(() => {
     } else {
       await loadData();
     }
+  }
 };
 
   const toggleLeadVolunteer = async (submissionId, shiftId) => {
