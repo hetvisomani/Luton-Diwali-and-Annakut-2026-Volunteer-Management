@@ -1575,7 +1575,7 @@ const loadData = async () => {
         {/* Annakut hero image */}
         <div className="w-full overflow-hidden rounded-3xl shadow-2xl">
           <img
-            src="/annakut-banner.jpg"
+            src="/annakut.banner.jpg"
             alt="BAPS Diwali and Annakut"
             className="w-full h-auto block"
           />
