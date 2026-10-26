@@ -60,8 +60,6 @@ const DAYS = [
   { id: 'annakut', label: 'Annakut / New Year Day', date: '10/11/2026' }
 ];
 
-// Admin SIDs with management privilege
-const ADMIN_SIDS = ['SID-31056', '31056', 'SID-ADMIN', 'ADMIN'];
 
 const DEPARTMENT_LEADS = {
   "Annakut Setup/Windup": { lead: "Bhavesh Patel"},
