@@ -1657,7 +1657,11 @@ const loadData = async () => {
                         )}
                       </div>
                       <div className="mt-2">
-                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                        <h2
+                          className={`text-xl sm:text-2xl font-black ${
+                            darkMode ? 'text-white' : 'text-slate-900'
+                          }`}
+                          >
                           Jay Swaminarayan,
                         </h2>
                         <span className="block text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
@@ -1717,7 +1721,11 @@ const loadData = async () => {
                                 )}
                               </div>
 
-                              <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                              <div
+                                className={`text-sm sm:text-base font-bold ${
+                                  darkMode ? 'text-white' : 'text-slate-900'
+                                }`}
+                              >
                                 {shift.title}
                               </div>
 
@@ -2270,7 +2278,13 @@ const loadData = async () => {
                                   >
                                     <Crown className="w-3 h-3" />
                                   </button>
-                                  <span className="font-medium truncate">{sub.fullName}</span>
+                                  <span
+                                    className={`font-bold ${
+                                      darkMode ? 'text-white' : 'text-slate-900'
+                                    }`}
+                                  >
+                                    {sub.fullName}
+                                  </span>
                                 </div>
 
                                 <button
@@ -2297,9 +2311,20 @@ const loadData = async () => {
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-slate-400">Total Capacity Needed</div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white">{totalCapacityStats.totalReq}</div>
-              </div>
+                <div
+                  className={`text-[10px] font-bold uppercase ${
+                    darkMode ? 'text-slate-300' : 'text-slate-600'
+                  }`}
+                >
+                  Total Capacity Needed
+                </div>
+                <div
+                  className={`text-2xl font-black ${
+                    darkMode ? 'text-white' : 'text-slate-900'
+                  }`}
+                >
+                  {totalCapacityStats.totalReq}
+                </div>
 
               <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
                 <div className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Allocated Shifts</div>
@@ -2321,8 +2346,13 @@ const loadData = async () => {
             <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-6`}>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-amber-500" /> Event RAG Calendar Schedule
+                  <h3
+                    className={`text-base font-bold flex items-center gap-2 ${
+                      darkMode ? 'text-white' : 'text-slate-900'
+                    }`}
+                  >
+                    <Calendar className="w-5 h-5 text-amber-500" />
+                    Event RAG Calendar Schedule
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Filter by department and select day to review RAG coverage.
