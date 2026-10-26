@@ -1860,7 +1860,11 @@ const loadData = async () => {
                   {submissions.map(sub => (
                     <div key={sub.id} className="p-3 flex items-center justify-between text-xs bg-slate-50/50 dark:bg-slate-800/40">
                       <div>
-                        <strong className="text-slate-900 dark:text-slate-100">{sub.fullName}</strong>
+                        <strong
+                          className={darkMode ? 'text-slate-100' : 'text-slate-900'}
+                          >
+                          {sub.fullName}
+                        </strong>
                         <span className="ml-2 text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">({sub.sid})</span>
                         <p className="text-[11px] text-slate-500">{sub.mandal}</p>
                       </div>
@@ -1940,7 +1944,11 @@ const loadData = async () => {
                     <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div className="space-y-1 w-full">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+                          <h3
+                            className={`text-base sm:text-lg font-black leading-tight ${
+                              darkMode ? 'text-white' : 'text-slate-900'
+                            }`}
+                          >
                             {sub.fullName}
                           </h3>
                           <div className="flex items-center gap-1">
@@ -2199,7 +2207,11 @@ const loadData = async () => {
                         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                           {shift.department}
                         </span>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                        <h3
+                          className={`text-sm font-bold mt-1 ${
+                            darkMode ? 'text-white' : 'text-slate-900'
+                          }`}
+                          >
                           {shift.title}
                         </h3>
                       </div>
