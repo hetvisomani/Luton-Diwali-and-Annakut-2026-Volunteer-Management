@@ -401,102 +401,314 @@ useEffect(() => {
   const [excelFile, setExcelFile] = useState(null);
 
   // Parse Excel tabular TSV/CSV or JSON responses from MS Forms Excel Export
-  const handleProcessExcelData = (textInput) => {
-    try {
-      const raw = textInput || excelPasteData;
-      if (!raw.trim()) {
-        setImportStatusMsg({ text: 'Please paste Excel response rows or upload a file.', type: 'error' });
-        return;
-      }
+  const handleProcessExcelData = async (textInput) => {
+  try {
+    const raw = textInput || excelPasteData;
 
-      let parsedRows = [];
-      if (raw.trim().startsWith('[') || raw.trim().startsWith('{')) {
-        const json = JSON.parse(raw);
-        parsedRows = Array.isArray(json) ? json : [json];
-      } else {
-        const lines = raw.trim().split('\n').map(l => l.split(/\t|,/));
-        if (lines.length > 0) {
-          const headers = lines[0].map(h => h.trim().toLowerCase());
-          
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i];
-            if (cols.length < 2) continue;
-            
-            const rowObj = {};
-            headers.forEach((h, idx) => {
-              rowObj[h] = cols[idx] ? cols[idx].trim() : '';
-            });
-            parsedRows.push(rowObj);
-          }
+    if (!raw.trim()) {
+      setImportStatusMsg({
+        text: 'Please paste Excel response rows or upload a file.',
+        type: 'error'
+      });
+      return;
+    }
+
+    let parsedRows = [];
+
+    if (raw.trim().startsWith('[') || raw.trim().startsWith('{')) {
+      const json = JSON.parse(raw);
+      parsedRows = Array.isArray(json) ? json : [json];
+    } else {
+      const lines = raw
+        .trim()
+        .split('\n')
+        .map(l => l.split(/\t|,/));
+
+      if (lines.length > 0) {
+        const headers = lines[0].map(h =>
+          h.trim().toLowerCase()
+        );
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i];
+
+          if (cols.length < 2) continue;
+
+          const rowObj = {};
+
+          headers.forEach((h, idx) => {
+            rowObj[h] = cols[idx]
+              ? cols[idx].trim()
+              : '';
+          });
+
+          parsedRows.push(rowObj);
         }
       }
+    }
 
-      if (parsedRows.length === 0) {
-        setImportStatusMsg({ text: 'Could not read any valid response rows. Please check format.', type: 'error' });
-        return;
+    if (parsedRows.length === 0) {
+      setImportStatusMsg({
+        text: 'Could not read any valid response rows. Please check format.',
+        type: 'error'
+      });
+      return;
+    }
+
+    const importedSevaks = parsedRows.map((item, idx) => {
+      const name =
+        item.name ||
+        item['full name'] ||
+        item['fullname'] ||
+        item['sevak name'] ||
+        `Sevak ${submissions.length + idx + 1}`;
+
+      const sidRaw =
+        item.sid ||
+        item['satsangi id'] ||
+        item['id'] ||
+        `SID-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const cleanSid = String(sidRaw)
+        .trim()
+        .toUpperCase()
+        .startsWith('SID-')
+          ? String(sidRaw).trim().toUpperCase()
+          : `SID-${String(sidRaw).trim().toUpperCase()}`;
+
+      const mandal =
+        item.mandal ||
+        item['mandal name'] ||
+        'Yuvak Mandal (ages 22-35)';
+
+      const primarySeva =
+        item['primary preferred seva'] ||
+        item['primary preferred department'] ||
+        item['primary seva'] ||
+        item['preferred seva'] ||
+        '';
+
+      const otherSevaRaw =
+        item['other preferred seva'] ||
+        item['other preferred departments'] ||
+        item['other seva'] ||
+        '';
+
+      const otherSevaArr =
+        typeof otherSevaRaw === 'string'
+          ? otherSevaRaw
+              .split(/;|,/)
+              .map(d => d.trim())
+              .filter(Boolean)
+          : [];
+
+      const deptsRaw =
+        item['preferred departments'] ||
+        item['preferred seva'] ||
+        item['departments'] ||
+        item['dept'] ||
+        item['department'] ||
+        '';
+
+      const preferredDepartments =
+        typeof deptsRaw === 'string' && deptsRaw.trim()
+          ? deptsRaw
+              .split(/;|,/)
+              .map(d => d.trim())
+              .filter(Boolean)
+          : primarySeva
+            ? [primarySeva, ...otherSevaArr]
+            : ['Annakut Setup/Windup'];
+
+      const diwaliTimes =
+        item['diwali available time'] ||
+        item['diwali time'] ||
+        item['diwali'] ||
+        '';
+
+      const annakutTimes =
+        item['annakut available time'] ||
+        item['annakut time'] ||
+        item['annakut'] ||
+        '';
+
+      const setupMonday =
+        item['availability for annakut setup monday 9th november'] ||
+        item['annakut setup monday 9th november'] ||
+        item['setup monday'] ||
+        item['setup'] ||
+        '';
+
+      const windupTuesday =
+        item['availability for annakut setup windup tuesday 10th november'] ||
+        item['annakut setup windup tuesday 10th november'] ||
+        item['windup tuesday'] ||
+        item['windup'] ||
+        '';
+
+      const dbsCreche =
+        item['dbs check & availabile for crèche'] ||
+        item['dbs check & available for creche'] ||
+        item['dbs check'] ||
+        item['availability for crèche'] ||
+        item['creche'] ||
+        'No';
+
+      const crecheTimes =
+        item['if yes times available for crèche'] ||
+        item['times available for crèche'] ||
+        item['creche times'] ||
+        'N/A';
+
+      return {
+        id: `sub-excel-${Date.now()}-${idx}`,
+        sid: cleanSid,
+        fullName: name,
+        email:
+          item.email ||
+          item['email address'] ||
+          '',
+        mandal: mandal,
+        primaryPreferredSeva:
+          primarySeva ||
+          preferredDepartments[0] ||
+          'Unassigned',
+        otherPreferredSeva: otherSevaArr,
+        preferredDepartments:
+          preferredDepartments.length > 0
+            ? preferredDepartments
+            : ['Annakut Setup/Windup'],
+        diwaliTime:
+          diwaliTimes || '9am to 1pm',
+        annakutTime:
+          annakutTimes || '5pm to 10pm',
+        setupMondayTime:
+          setupMonday || '5pm to 10pm',
+        windupTuesdayTime:
+          windupTuesday || 'N/A',
+        dbsCrecheStatus: dbsCreche,
+        crecheAvailableTimes: crecheTimes,
+
+        availability: {
+          diwali: diwaliTimes
+            ? diwaliTimes
+                .split(/;|,/)
+                .map(t => t.trim())
+                .filter(Boolean)
+            : ['9am to 1pm'],
+
+          setup_windup: setupMonday
+            ? setupMonday
+                .split(/;|,/)
+                .map(t => t.trim())
+                .filter(Boolean)
+            : ['1pm to 5pm'],
+
+          annakut: annakutTimes
+            ? annakutTimes
+                .split(/;|,/)
+                .map(t => t.trim())
+                .filter(Boolean)
+            : ['5pm to 10pm']
+        },
+
+        crecheAvailability: dbsCreche,
+        status: 'Pending',
+        assignedShifts: []
+      };
+    });
+
+    // Merge imported responses with existing sevaks by SID.
+    // Existing rota allocations and IDs are preserved.
+    const mergedSevaks = importedSevaks.map(imported => {
+      const existing = submissions.find(
+        sub =>
+          sub.sid.trim().toUpperCase() ===
+          imported.sid.trim().toUpperCase()
+      );
+
+      if (!existing) {
+        return imported;
       }
 
-      const newSevaks = parsedRows.map((item, idx) => {
-        const name = item.name || item['full name'] || item['fullname'] || item['sevak name'] || `Sevak ${submissions.length + idx + 1}`;
-        const sidRaw = item.sid || item['satsangi id'] || item['id'] || `SID-${Math.floor(1000 + Math.random() * 9000)}`;
-        const cleanSid = sidRaw.toUpperCase().startsWith('SID-') ? sidRaw.toUpperCase() : `SID-${sidRaw}`;
-        const mandal = item.mandal || item['mandal name'] || 'Yuvak Mandal (ages 22-35)';
-        
-        const primarySeva = item['primary preferred seva'] || item['primary preferred department'] || item['primary seva'] || item['preferred seva'] || '';
-        const otherSevaRaw = item['other preferred seva'] || item['other preferred departments'] || item['other seva'] || '';
-        const otherSevaArr = typeof otherSevaRaw === 'string' ? otherSevaRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : [];
+      return {
+        ...existing,
 
-        const deptsRaw = item['preferred departments'] || item['preferred seva'] || item['departments'] || item['dept'] || item['department'] || '';
-        const preferredDepartments = typeof deptsRaw === 'string' ? deptsRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : (primarySeva ? [primarySeva, ...otherSevaArr] : ['Annakut Setup/Windup']);
+        // Update the Forms/profile information
+        fullName: imported.fullName,
+        email: imported.email,
+        mandal: imported.mandal,
+        primaryPreferredSeva: imported.primaryPreferredSeva,
+        otherPreferredSeva: imported.otherPreferredSeva,
+        preferredDepartments: imported.preferredDepartments,
+        diwaliTime: imported.diwaliTime,
+        annakutTime: imported.annakutTime,
+        setupMondayTime: imported.setupMondayTime,
+        windupTuesdayTime: imported.windupTuesdayTime,
+        dbsCrecheStatus: imported.dbsCrecheStatus,
+        crecheAvailableTimes: imported.crecheAvailableTimes,
+        availability: imported.availability,
+        crecheAvailability: imported.crecheAvailability,
 
-        const diwaliTimes = item['diwali available time'] || item['diwali time'] || item['diwali'] || '';
-        const annakutTimes = item['annakut available time'] || item['annakut time'] || item['annakut'] || '';
-        const setupMonday = item['availability for annakut setup monday 9th november'] || item['annakut setup monday 9th november'] || item['setup monday'] || item['setup'] || '';
-        const windupTuesday = item['availability for annakut setup windup tuesday 10th november'] || item['annakut setup windup tuesday 10th november'] || item['windup tuesday'] || item['windup'] || '';
+        // IMPORTANT:
+        // Preserve existing rota information
+        id: existing.id,
+        sid: existing.sid,
+        status: existing.status,
+        assignedShifts: existing.assignedShifts
+      };
+    });
 
-        const dbsCreche = item['dbs check & availabile for crèche'] || item['dbs check & available for creche'] || item['dbs check'] || item['availability for crèche'] || item['creche'] || 'No';
-        const crecheTimes = item['if yes times available for crèche'] || item['times available for crèche'] || item['creche times'] || 'N/A';
+    // Save all imported/updated sevaks permanently
+    const { error } = await supabase
+      .from('submissions')
+      .upsert(
+        mergedSevaks.map(submissionToDb),
+        { onConflict: 'sid' }
+      );
 
-        return {
-          id: `sub-excel-${Date.now()}-${idx}`,
-          sid: cleanSid,
-          fullName: name,
-          email: item.email || item['email address'] || '',
-          mandal: mandal,
-          primaryPreferredSeva: primarySeva || preferredDepartments[0] || 'Unassigned',
-          otherPreferredSeva: otherSevaArr,
-          preferredDepartments: preferredDepartments.length > 0 ? preferredDepartments : ['Annakut Setup/Windup'],
-          diwaliTime: diwaliTimes || '9am to 1pm',
-          annakutTime: annakutTimes || '5pm to 10pm',
-          setupMondayTime: setupMonday || '5pm to 10pm',
-          windupTuesdayTime: windupTuesday || 'N/A',
-          dbsCrecheStatus: dbsCreche,
-          crecheAvailableTimes: crecheTimes,
-          availability: {
-            diwali: diwaliTimes ? diwaliTimes.split(/;|,/).map(t => t.trim()) : ['9am to 1pm'],
-            setup_windup: setupMonday ? setupMonday.split(/;|,/).map(t => t.trim()) : ['1pm to 5pm'],
-            annakut: annakutTimes ? annakutTimes.split(/;|,/).map(t => t.trim()) : ['5pm to 10pm']
-          },
-          crecheAvailability: dbsCreche,
-          status: 'Pending',
-          assignedShifts: []
-        };
-      });
+    if (error) throw error;
 
-      setSubmissions(prev => {
-        const existingSids = new Set(prev.map(s => s.sid.toUpperCase()));
-        const uniqueNew = newSevaks.filter(s => !existingSids.has(s.sid.toUpperCase()));
-        return [...uniqueNew, ...prev];
-      });
+    // Reload from Supabase so the screen matches the database
+    await loadData();
 
-      setImportStatusMsg({ text: `Successfully extracted ${newSevaks.length} Sevak record(s) into Volunteer Allocation!`, type: 'success' });
-      setExcelPasteData('');
-      setLastSynced(new Date().toLocaleTimeString());
-    } catch (err) {
-      setImportStatusMsg({ text: 'Failed to parse Excel data format. Ensure columns contain Name, SID, Mandal, etc.', type: 'error' });
-    }
-  };
+    const existingSidSet = new Set(
+      submissions.map(sub =>
+        sub.sid.trim().toUpperCase()
+      )
+    );
 
+    const newCount = importedSevaks.filter(
+      sub =>
+        !existingSidSet.has(
+          sub.sid.trim().toUpperCase()
+        )
+    ).length;
+
+    const updatedCount =
+      importedSevaks.length - newCount;
+
+    setImportStatusMsg({
+      text:
+        `Successfully imported ${importedSevaks.length} sevak record(s): ` +
+        `${newCount} new and ${updatedCount} updated.`,
+      type: 'success'
+    });
+
+    setExcelPasteData('');
+    setLastSynced(new Date().toLocaleTimeString());
+
+  } catch (err) {
+    console.error('Error importing Excel data:', err);
+
+    setImportStatusMsg({
+      text:
+        'Failed to import the data. Please check the file format and try again.',
+      type: 'error'
+    });
+  }
+};
+  
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -510,39 +722,130 @@ useEffect(() => {
     reader.readAsText(file);
   };
 
-  const handleImportCSVData = () => {
-    try {
-      if (!importJsonText.trim()) return;
-      const parsed = JSON.parse(importJsonText);
-      if (Array.isArray(parsed)) {
-        const formatted = parsed.map((item, idx) => ({
-          id: `sub-import-${Date.now()}-${idx}`,
-          sid: item.sid || `SID-${Math.floor(1000 + Math.random() * 9000)}`,
-          fullName: item.fullName || item.Name || 'New Sevak',
-          email: item.email || item.Email || '',
-          mandal: item.mandal || 'Yuvak Mandal (ages 22-35)',
-          primaryPreferredSeva: item.primaryPreferredSeva || 'Unassigned',
-          otherPreferredSeva: item.otherPreferredSeva || [],
-          preferredDepartments: item.preferredDepartments || ['No preference'],
-          diwaliTime: item.diwaliTime || 'All Day',
-          annakutTime: item.annakutTime || 'All Day',
-          setupMondayTime: item.setupMondayTime || 'All Day',
-          windupTuesdayTime: item.windupTuesdayTime || 'All Day',
-          dbsCrecheStatus: item.dbsCrecheStatus || 'No',
-          crecheAvailableTimes: item.crecheAvailableTimes || 'N/A',
-          availability: item.availability || { diwali: ['All Day'], setup_windup: ['All Day'], annakut: ['All Day'] },
-          crecheAvailability: item.dbsCrecheStatus || 'No',
-          status: 'Pending',
-          assignedShifts: []
-        }));
-        setSubmissions(prev => [...formatted, ...prev]);
-        setImportJsonText('');
-        setShowImportModal(false);
-      }
-    } catch (e) {
-      setImportStatusMsg({ text: 'Invalid JSON format. Please paste a valid JSON array.', type: 'error' });
+  const handleImportCSVData = async () => {
+  try {
+    if (!importJsonText.trim()) return;
+
+    const parsed = JSON.parse(importJsonText);
+
+    if (!Array.isArray(parsed)) {
+      setImportStatusMsg({
+        text: 'Invalid JSON format. Please paste a valid JSON array.',
+        type: 'error'
+      });
+      return;
     }
-  };
+
+    const importedSevaks = parsed.map((item, idx) => {
+      const sidRaw =
+        item.sid ||
+        `SID-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const cleanSid = String(sidRaw)
+        .trim()
+        .toUpperCase()
+        .startsWith('SID-')
+          ? String(sidRaw).trim().toUpperCase()
+          : `SID-${String(sidRaw).trim().toUpperCase()}`;
+
+      return {
+        id: `sub-import-${Date.now()}-${idx}`,
+        sid: cleanSid,
+        fullName: item.fullName || item.Name || 'New Sevak',
+        email: item.email || item.Email || '',
+        mandal:
+          item.mandal ||
+          'Yuvak Mandal (ages 22-35)',
+        primaryPreferredSeva:
+          item.primaryPreferredSeva ||
+          'Unassigned',
+        otherPreferredSeva:
+          item.otherPreferredSeva || [],
+        preferredDepartments:
+          item.preferredDepartments ||
+          ['No preference'],
+        diwaliTime:
+          item.diwaliTime || 'All Day',
+        annakutTime:
+          item.annakutTime || 'All Day',
+        setupMondayTime:
+          item.setupMondayTime || 'All Day',
+        windupTuesdayTime:
+          item.windupTuesdayTime || 'All Day',
+        dbsCrecheStatus:
+          item.dbsCrecheStatus || 'No',
+        crecheAvailableTimes:
+          item.crecheAvailableTimes || 'N/A',
+        availability:
+          item.availability || {
+            diwali: ['All Day'],
+            setup_windup: ['All Day'],
+            annakut: ['All Day']
+          },
+        crecheAvailability:
+          item.crecheAvailability ||
+          item.dbsCrecheStatus ||
+          'No',
+        status: 'Pending',
+        assignedShifts: []
+      };
+    });
+
+    // If the SID already exists, update their details
+    // but preserve their current rota allocations.
+    const mergedSevaks = importedSevaks.map(imported => {
+      const existing = submissions.find(
+        sub =>
+          sub.sid.trim().toUpperCase() ===
+          imported.sid.trim().toUpperCase()
+      );
+
+      if (!existing) {
+        return imported;
+      }
+
+      return {
+        ...imported,
+
+        // Preserve permanent identity and rota information
+        id: existing.id,
+        sid: existing.sid,
+        status: existing.status,
+        assignedShifts: existing.assignedShifts
+      };
+    });
+
+    // Save permanently to Supabase
+    const { error } = await supabase
+      .from('submissions')
+      .upsert(
+        mergedSevaks.map(submissionToDb),
+        { onConflict: 'sid' }
+      );
+
+    if (error) throw error;
+
+    // Reload the database data
+    await loadData();
+
+    setImportJsonText('');
+    setShowImportModal(false);
+
+    setImportStatusMsg({
+      text: `Successfully imported ${importedSevaks.length} sevak record(s).`,
+      type: 'success'
+    });
+
+  } catch (error) {
+    console.error('Error importing JSON data:', error);
+
+    setImportStatusMsg({
+      text:
+        'Import failed. Please check the data and try again.',
+      type: 'error'
+    });
+  }
+};
 
   const handlePortalLogin = (e) => {
     e.preventDefault();
@@ -640,92 +943,283 @@ useEffect(() => {
   }
 };
   
-  const unassignVolunteerFromShift = (submissionId, shiftId) => {
-    setShifts(prevShifts =>
-      prevShifts.map(shift => {
-        if (shift.id === shiftId) {
-          const updatedAssigned = shift.assignedVolunteers.filter(id => id !== submissionId);
-          const updatedLead = shift.leadVolunteerId === submissionId ? null : shift.leadVolunteerId;
-          return {
-            ...shift,
-            assignedVolunteers: updatedAssigned,
-            leadVolunteerId: updatedLead
-          };
-        }
-        return shift;
-      })
-    );
-
-    setSubmissions(prevSubs =>
-      prevSubs.map(sub => {
-        if (sub.id === submissionId) {
-          const updatedShifts = sub.assignedShifts.filter(id => id !== shiftId);
-          return {
-            ...sub,
-            assignedShifts: updatedShifts,
-            status: updatedShifts.length === 0 ? 'Pending' : 'Assigned'
-          };
-        }
-        return sub;
-      })
-    );
-  };
-
-  const toggleLeadVolunteer = (shiftId, submissionId) => {
-    setShifts(prevShifts =>
-      prevShifts.map(shift => {
-        if (shift.id === shiftId) {
-          const newLead = shift.leadVolunteerId === submissionId ? null : submissionId;
-          return { ...shift, leadVolunteerId: newLead };
-        }
-        return shift;
-      })
-    );
-  };
-
-  const handleDeleteVolunteer = (submissionId) => {
-    setShifts(prevShifts =>
-      prevShifts.map(shift => ({
-        ...shift,
-        assignedVolunteers: shift.assignedVolunteers.filter(id => id !== submissionId),
-        leadVolunteerId: shift.leadVolunteerId === submissionId ? null : shift.leadVolunteerId
-      }))
-    );
-    setSubmissions(prevSubs => prevSubs.filter(sub => sub.id !== submissionId));
-  };
-
-  const handleDeleteShiftFromMasterRota = (shiftId) => {
+  const unassignVolunteerFromShift = async (submissionId, shiftId) => {
+  try {
     const shift = shifts.find(s => s.id === shiftId);
-    if (!shift) return;
+    const submission = submissions.find(s => s.id === submissionId);
 
-    setSubmissions(prev => 
-      prev.map(sub => ({
-        ...sub,
-        assignedShifts: sub.assignedShifts.filter(id => id !== shiftId),
-        status: sub.assignedShifts.filter(id => id !== shiftId).length === 0 ? 'Pending' : sub.status
-      }))
-    );
+    if (!shift || !submission) return;
 
-    setShifts(prev => prev.filter(s => s.id !== shiftId));
-  };
-
-  const handleCreateNewShift = (e) => {
-    e.preventDefault();
-    const createdShift = {
-      id: `shift-${Date.now()}`,
-      department: newShift.department,
-      day: newShift.day,
-      title: newShift.title || `${newShift.department} - ${newShift.timeSlot}`,
-      timeSlot: newShift.timeSlot,
-      requiredVolunteers: parseInt(newShift.requiredVolunteers) || 5,
-      assignedVolunteers: [],
-      leadVolunteerId: null,
-      location: `${newShift.department} Zone`,
-      isUrgent: false
+    const updatedShift = {
+      ...shift,
+      assignedVolunteers: shift.assignedVolunteers.filter(
+        id => id !== submissionId
+      ),
+      leadVolunteerId:
+        shift.leadVolunteerId === submissionId
+          ? null
+          : shift.leadVolunteerId
     };
 
+    const updatedAssignedShifts = submission.assignedShifts.filter(
+      id => id !== shiftId
+    );
+
+    const updatedSubmission = {
+      ...submission,
+      assignedShifts: updatedAssignedShifts,
+      status: updatedAssignedShifts.length > 0 ? 'Assigned' : 'Pending'
+    };
+
+    // Save the updated shift to Supabase
+    const { error: shiftError } = await supabase
+      .from('shifts')
+      .update(shiftToDb(updatedShift))
+      .eq('id', shiftId);
+
+    if (shiftError) throw shiftError;
+
+    // Save the updated sevak to Supabase
+    const { error: submissionError } = await supabase
+      .from('submissions')
+      .update(submissionToDb(updatedSubmission))
+      .eq('id', submissionId);
+
+    if (submissionError) throw submissionError;
+
+    // Update what is shown on screen
+    setShifts(prevShifts =>
+      prevShifts.map(s =>
+        s.id === shiftId ? updatedShift : s
+      )
+    );
+
+    setSubmissions(prevSubmissions =>
+      prevSubmissions.map(s =>
+        s.id === submissionId ? updatedSubmission : s
+      )
+    );
+
+  } catch (error) {
+    console.error('Error unassigning volunteer:', error);
+    alert('The sevak could not be unallocated. Please try again.');
+
+    // Restore what is actually stored in the database
+    await loadData();
+  }
+};
+
+  const toggleLeadVolunteer = async (submissionId, shiftId) => {
+  try {
+    const shift = shifts.find(s => s.id === shiftId);
+
+    if (!shift) return;
+
+    // If this sevak is already the lead, remove them as lead.
+    // Otherwise make them the lead.
+    const updatedShift = {
+      ...shift,
+      leadVolunteerId:
+        shift.leadVolunteerId === submissionId
+          ? null
+          : submissionId
+    };
+
+    // Save to Supabase
+    const { error } = await supabase
+      .from('shifts')
+      .update(shiftToDb(updatedShift))
+      .eq('id', shiftId);
+
+    if (error) throw error;
+
+    // Update what is shown on screen
+    setShifts(prevShifts =>
+      prevShifts.map(s =>
+        s.id === shiftId ? updatedShift : s
+      )
+    );
+
+  } catch (error) {
+    console.error('Error changing team lead:', error);
+    alert('The team lead could not be saved. Please try again.');
+
+    // Restore the real database data if something went wrong
+    await loadData();
+  }
+};
+
+  const handleDeleteVolunteer = async (submissionId) => {
+  try {
+    // Find every shift this sevak is currently part of
+    const affectedShifts = shifts.filter(
+      shift =>
+        shift.assignedVolunteers.includes(submissionId) ||
+        shift.leadVolunteerId === submissionId
+    );
+
+    // Remove the sevak from those shifts
+    const updatedAffectedShifts = affectedShifts.map(shift => ({
+      ...shift,
+      assignedVolunteers: shift.assignedVolunteers.filter(
+        id => id !== submissionId
+      ),
+      leadVolunteerId:
+        shift.leadVolunteerId === submissionId
+          ? null
+          : shift.leadVolunteerId
+    }));
+
+    // Save the cleaned-up shifts to Supabase
+    if (updatedAffectedShifts.length > 0) {
+      const { error: shiftsError } = await supabase
+        .from('shifts')
+        .upsert(
+          updatedAffectedShifts.map(shiftToDb),
+          { onConflict: 'id' }
+        );
+
+      if (shiftsError) throw shiftsError;
+    }
+
+    // Delete the sevak from Supabase
+    const { error: submissionError } = await supabase
+      .from('submissions')
+      .delete()
+      .eq('id', submissionId);
+
+    if (submissionError) throw submissionError;
+
+    // Update the shifts shown on screen
+    setShifts(prevShifts =>
+      prevShifts.map(shift => {
+        if (
+          !shift.assignedVolunteers.includes(submissionId) &&
+          shift.leadVolunteerId !== submissionId
+        ) {
+          return shift;
+        }
+
+        return {
+          ...shift,
+          assignedVolunteers: shift.assignedVolunteers.filter(
+            id => id !== submissionId
+          ),
+          leadVolunteerId:
+            shift.leadVolunteerId === submissionId
+              ? null
+              : shift.leadVolunteerId
+        };
+      })
+    );
+
+    // Remove the sevak from the screen
+    setSubmissions(prevSubs =>
+      prevSubs.filter(sub => sub.id !== submissionId)
+    );
+
+  } catch (error) {
+    console.error('Error deleting sevak:', error);
+    alert('The sevak could not be deleted. Please try again.');
+
+    // Restore whatever is actually stored in Supabase
+    await loadData();
+  }
+};
+
+  const handleDeleteShiftFromMasterRota = async (shiftId) => {
+  const shift = shifts.find(s => s.id === shiftId);
+  if (!shift) return;
+
+  try {
+    // Work out what every sevak should look like after this shift is removed
+    const updatedSubmissions = submissions.map(sub => {
+      const updatedAssignedShifts = sub.assignedShifts.filter(
+        id => id !== shiftId
+      );
+
+      return {
+        ...sub,
+        assignedShifts: updatedAssignedShifts,
+        status:
+          updatedAssignedShifts.length === 0
+            ? 'Pending'
+            : sub.status
+      };
+    });
+
+    // Only save sevaks who were actually assigned to this shift
+    const affectedSubmissions = updatedSubmissions.filter(sub =>
+      submissions
+        .find(original => original.id === sub.id)
+        ?.assignedShifts.includes(shiftId)
+    );
+
+    // Update those sevaks in Supabase
+    if (affectedSubmissions.length > 0) {
+      const { error: submissionsError } = await supabase
+        .from('submissions')
+        .upsert(
+          affectedSubmissions.map(submissionToDb),
+          { onConflict: 'id' }
+        );
+
+      if (submissionsError) throw submissionsError;
+    }
+
+    // Delete the shift from Supabase
+    const { error: shiftError } = await supabase
+      .from('shifts')
+      .delete()
+      .eq('id', shiftId);
+
+    if (shiftError) throw shiftError;
+
+    // Update what is shown on screen
+    setSubmissions(updatedSubmissions);
+    setShifts(prev =>
+      prev.filter(s => s.id !== shiftId)
+    );
+
+  } catch (error) {
+    console.error('Error deleting shift:', error);
+    alert('The shift could not be deleted. Please try again.');
+
+    // Restore the real database data
+    await loadData();
+  }
+};
+  const handleCreateNewShift = async (e) => {
+  e.preventDefault();
+
+  const createdShift = {
+    id: `shift-${Date.now()}`,
+    department: newShift.department,
+    day: newShift.day,
+    title: newShift.title || `${newShift.department} - ${newShift.timeSlot}`,
+    timeSlot: newShift.timeSlot,
+    requiredVolunteers: parseInt(newShift.requiredVolunteers) || 5,
+    assignedVolunteers: [],
+    leadVolunteerId: null,
+    location: `${newShift.department} Zone`,
+    isUrgent: false
+  };
+
+  try {
+    // Save the new shift to Supabase
+    const { error } = await supabase
+      .from('shifts')
+      .insert([shiftToDb(createdShift)]);
+
+    if (error) throw error;
+
+    // Add the new shift to what is shown on screen
     setShifts(prev => [...prev, createdShift]);
+
+    // Close the modal
     setShowAddShiftModal(false);
+
+    // Reset the form
     setNewShift({
       department: DEPARTMENTS[0],
       day: DAYS[0].id,
@@ -733,21 +1227,81 @@ useEffect(() => {
       timeSlot: '9am to 1pm',
       requiredVolunteers: 5
     });
-  };
 
-  const handleSaveShiftEdit = (e) => {
-    e.preventDefault();
-    if (!editingShift) return;
-    setShifts(prev => prev.map(s => s.id === editingShift.id ? editingShift : s));
+  } catch (error) {
+    console.error('Error creating shift:', error);
+    alert('The new shift could not be saved. Please try again.');
+
+    // Reload the real database data
+    await loadData();
+  }
+};
+
+  const handleSaveShiftEdit = async (e) => {
+  e.preventDefault();
+
+  if (!editingShift) return;
+
+  try {
+    // Save the edited shift to Supabase
+    const { error } = await supabase
+      .from('shifts')
+      .update(shiftToDb(editingShift))
+      .eq('id', editingShift.id);
+
+    if (error) throw error;
+
+    // Update what is shown on screen
+    setShifts(prev =>
+      prev.map(s =>
+        s.id === editingShift.id ? editingShift : s
+      )
+    );
+
+    // Close the edit window
     setEditingShift(null);
-  };
 
-  const handleSaveSevakDetails = (e) => {
-    e.preventDefault();
-    if (!editingSevak) return;
-    setSubmissions(prev => prev.map(s => s.id === editingSevak.id ? editingSevak : s));
+  } catch (error) {
+    console.error('Error saving shift:', error);
+    alert('The shift changes could not be saved. Please try again.');
+
+    // Reload the real data from Supabase
+    await loadData();
+  }
+};
+
+  const handleSaveSevakDetails = async (e) => {
+  e.preventDefault();
+
+  if (!editingSevak) return;
+
+  try {
+    // Save the edited sevak details to Supabase
+    const { error } = await supabase
+      .from('submissions')
+      .update(submissionToDb(editingSevak))
+      .eq('id', editingSevak.id);
+
+    if (error) throw error;
+
+    // Update what is shown on screen
+    setSubmissions(prev =>
+      prev.map(s =>
+        s.id === editingSevak.id ? editingSevak : s
+      )
+    );
+
+    // Close the edit window
     setEditingSevak(null);
-  };
+
+  } catch (error) {
+    console.error('Error saving sevak details:', error);
+    alert('The sevak details could not be saved. Please try again.');
+
+    // Reload the real data from Supabase
+    await loadData();
+  }
+};
 
   const totalCapacityStats = useMemo(() => {
     const totalReq = shifts.reduce((a, b) => a + b.requiredVolunteers, 0);
