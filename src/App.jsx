@@ -247,8 +247,90 @@ export default function App() {
   }, [loggedInSevak]);
 
   // Rota & Sevaks state
-  const [shifts, setShifts] = useState(generateInitialShifts);
-  const [submissions, setSubmissions] = useState(initialSubmissions);
+  const [shifts, setShifts] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Convert a submission row from Supabase into the format used by this app
+const submissionFromDb = (row) => ({
+  id: row.id,
+  sid: row.sid,
+  fullName: row.full_name,
+  email: row.email || '',
+  mandal: row.mandal || '',
+  primaryPreferredSeva: row.primary_preferred_seva || '',
+  otherPreferredSeva: row.other_preferred_seva || [],
+  preferredDepartments: row.preferred_departments || [],
+  diwaliTime: row.diwali_time || '',
+  annakutTime: row.annakut_time || '',
+  setupMondayTime: row.setup_monday_time || '',
+  windupTuesdayTime: row.windup_tuesday_time || '',
+  dbsCrecheStatus: row.dbs_creche_status || 'No',
+  crecheAvailableTimes: row.creche_available_times || 'N/A',
+  availability: row.availability || {},
+  crecheAvailability: row.creche_availability || 'No',
+  status: row.status || 'Pending',
+  assignedShifts: row.assigned_shifts || []
+});
+
+// Convert a shift row from Supabase into the format used by this app
+const shiftFromDb = (row) => ({
+  id: row.id,
+  department: row.department,
+  day: row.day,
+  title: row.title,
+  timeSlot: row.time_slot,
+  requiredVolunteers: row.required_volunteers,
+  assignedVolunteers: row.assigned_volunteers || [],
+  leadVolunteerId: row.lead_volunteer_id,
+  location: row.location || '',
+  isUrgent: row.is_urgent || false
+});
+
+// Load the latest rota and sevak data from Supabase
+const loadData = async () => {
+  try {
+    setIsLoadingData(true);
+
+    const [submissionsResult, shiftsResult] = await Promise.all([
+      supabase
+        .from('submissions')
+        .select('*')
+        .order('created_at', { ascending: true }),
+
+      supabase
+        .from('shifts')
+        .select('*')
+        .order('created_at', { ascending: true })
+    ]);
+
+    if (submissionsResult.error) {
+      throw submissionsResult.error;
+    }
+
+    if (shiftsResult.error) {
+      throw shiftsResult.error;
+    }
+
+    setSubmissions(
+      (submissionsResult.data || []).map(submissionFromDb)
+    );
+
+    setShifts(
+      (shiftsResult.data || []).map(shiftFromDb)
+    );
+
+  } catch (error) {
+    console.error('Error loading data from Supabase:', error);
+  } finally {
+    setIsLoadingData(false);
+  }
+};
+
+// Load database data when the website first opens
+useEffect(() => {
+  loadData();
+}, []);
 
   // Modals & form states
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
