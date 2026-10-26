@@ -237,14 +237,7 @@ export default function App() {
   const [portalMessage, setPortalMessage] = useState('');
 
   // Check if active user is Admin
-  const isAdminLoggedIn = useMemo(() => {
-    if (!loggedInSevak) return false;
-    const cleanSid = loggedInSevak.sid.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    return ADMIN_SIDS.some(adminSid => {
-      const cleanAdmin = adminSid.toUpperCase().replace(/[^0-9A-Z]/g, '');
-      return cleanSid.includes(cleanAdmin) || cleanAdmin.includes(cleanSid);
-    });
-  }, [loggedInSevak]);
+  const isAdminLoggedIn = loggedInSevak?.isAdmin === true;
 
   // Rota & Sevaks state
   const [shifts, setShifts] = useState([]);
