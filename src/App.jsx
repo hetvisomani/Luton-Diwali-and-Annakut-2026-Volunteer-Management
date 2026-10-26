@@ -1569,9 +1569,25 @@ const loadData = async () => {
 
         {/* SECTION 1: SEVAK PORTAL LOGIN & PERSONAL ROTA */}
         {activeTab === 'portal' && (
-          <div className="max-w-xl mx-auto space-y-6">
+          <div className={`${!loggedInSevak ? 'max-w-4xl' : 'max-w-xl'} mx-auto space-y-6`}>
             {!loggedInSevak ? (
-              <div className={`p-6 sm:p-8 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-2xl space-y-6 text-center`}>
+            <>
+              {/* Annakut hero image */}
+              <div className="w-full overflow-hidden rounded-3xl shadow-2xl">
+                <img
+                  src="/annakut-banner.jpg"
+                  alt="BAPS Diwali and Annakut"
+                  className="w-full h-auto block"
+                />
+              </div>
+
+              {/* SID login card/*}
+              </div> className={`max-w-xl mx-auto p-6 sm:p-8 rounded-3xl border ${
+                darkMode
+                 ? 'bg-slate-900 border-slate-800'
+                 : 'bg-white border-amber-200'
+                 } shadow-2xl space-y-6 text-center`}>
+                
                 <div className="space-y-2">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-orange-500/30">
                     <KeyRound className="w-6 h-6" />
