@@ -45,7 +45,8 @@ const DEPARTMENTS = [
   "Sampark",
   "Welcome",
   "Flow management",
-  "Volunteer management"
+  "Fun Zone Stalls"
+  "Mehndi, Tatoo, Face Painting"
 ];
 
 const TIME_SLOTS = [
