@@ -16,13 +16,16 @@ import {
   Crown,
   FileSpreadsheet,
   RefreshCw,
-  ExternalLink,
   BarChart3,
   User,
   Download,
   LogOut,
   KeyRound,
-  Plus
+  Plus,
+  Upload,
+  FileText,
+  Check,
+  Filter
 } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -194,26 +197,40 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('portal');
   const [darkMode, setDarkMode] = useState(false);
 
-  // Rota & Sevaks state
-  const [shifts, setShifts] = useState(generateInitialShifts);
-  const [submissions, setSubmissions] = useState(initialSubmissions);
-
-  // Sync / Microsoft Form state
-  const [msFormUrl, setMsFormUrl] = useState('https://forms.office.com/r/BAPS-Luton-Diwali-2026');
-  const [lastSynced, setLastSynced] = useState(new Date().toLocaleTimeString());
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [importJsonText, setImportJsonText] = useState('');
-  const [showImportModal, setShowImportModal] = useState(false);
-
-  // Sevak Portal Authentication State
+  // User auth state
   const [portalSidInput, setPortalSidInput] = useState('');
   const [loggedInSevak, setLoggedInSevak] = useState(null);
   const [portalMessage, setPortalMessage] = useState('');
 
-  // Master Rota Filters & Modal
+  // Check if active user is Admin
+  const isAdminLoggedIn = useMemo(() => {
+    if (!loggedInSevak) return false;
+    const cleanSid = loggedInSevak.sid.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    return ADMIN_SIDS.some(adminSid => {
+      const cleanAdmin = adminSid.toUpperCase().replace(/[^0-9A-Z]/g, '');
+      return cleanSid.includes(cleanAdmin) || cleanAdmin.includes(cleanSid);
+    });
+  }, [loggedInSevak]);
+
+  // Rota & Sevaks state
+  const [shifts, setShifts] = useState(generateInitialShifts);
+  const [submissions, setSubmissions] = useState(initialSubmissions);
+
+  // Modals & form states
+  const [showAddShiftModal, setShowAddShiftModal] = useState(false);
+  const [editingShift, setEditingShift] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+
+  // Filters state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allocationFilter, setAllocationFilter] = useState('ALL');
+  const [selectedAllocationDays, setSelectedAllocationDays] = useState({});
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
   const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
-  const [showAddShiftModal, setShowAddShiftModal] = useState(false);
+  const [ragDeptFilter, setRagDeptFilter] = useState('ALL');
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(DAYS[0].id);
+
   const [newShift, setNewShift] = useState({
     department: DEPARTMENTS[0],
     day: DAYS[0].id,
@@ -222,34 +239,101 @@ export default function App() {
     requiredVolunteers: 5
   });
 
-  // Allocation Filters & State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [allocationFilter, setAllocationFilter] = useState('ALL');
-  const [selectedAllocationDays, setSelectedAllocationDays] = useState({});
+  // Sync / Microsoft Excel import state
+  const [excelPasteData, setExcelPasteData] = useState('');
+  const [lastSynced, setLastSynced] = useState(new Date().toLocaleTimeString());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [importStatusMsg, setImportStatusMsg] = useState({ text: '', type: '' });
+  const [excelFile, setExcelFile] = useState(null);
 
-  // RAG & Calendar Filters
-  const [ragDeptFilter, setRagDeptFilter] = useState('ALL');
-  const [selectedCalendarDay, setSelectedCalendarDay] = useState('diwali');
+  // Parse Excel tabular TSV/CSV or JSON responses from MS Forms Excel Export
+  const handleProcessExcelData = (textInput) => {
+    try {
+      const raw = textInput || excelPasteData;
+      if (!raw.trim()) {
+        setImportStatusMsg({ text: 'Please paste Excel response rows or upload a file.', type: 'error' });
+        return;
+      }
 
-  // Modal Editing State
-  const [editingShift, setEditingShift] = useState(null);
+      let parsedRows = [];
+      if (raw.trim().startsWith('[') || raw.trim().startsWith('{')) {
+        const json = JSON.parse(raw);
+        parsedRows = Array.isArray(json) ? json : [json];
+      } else {
+        const lines = raw.trim().split('\n').map(l => l.split(/\t|,/));
+        if (lines.length > 0) {
+          const headers = lines[0].map(h => h.trim().toLowerCase());
+          
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i];
+            if (cols.length < 2) continue;
+            
+            const rowObj = {};
+            headers.forEach((h, idx) => {
+              rowObj[h] = cols[idx] ? cols[idx].trim() : '';
+            });
+            parsedRows.push(rowObj);
+          }
+        }
+      }
 
-  // Computed property to check if current logged-in user is an Admin
-  const isAdminLoggedIn = useMemo(() => {
-    if (!loggedInSevak) return false;
-    const cleanSid = loggedInSevak.sid.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
-    return ADMIN_SIDS.some(adminSid => {
-      const cleanAdmin = adminSid.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
-      return cleanSid === cleanAdmin || cleanSid.endsWith(cleanAdmin);
-    });
-  }, [loggedInSevak]);
+      if (parsedRows.length === 0) {
+        setImportStatusMsg({ text: 'Could not read any valid response rows. Please check format.', type: 'error' });
+        return;
+      }
 
-  const handleSyncMicrosoftForm = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
+      const newSevaks = parsedRows.map((item, idx) => {
+        const name = item.name || item['full name'] || item['fullname'] || item['sevak name'] || `Sevak ${submissions.length + idx + 1}`;
+        const sidRaw = item.sid || item['satsangi id'] || item['id'] || `SID-${Math.floor(1000 + Math.random() * 9000)}`;
+        const cleanSid = sidRaw.toUpperCase().startsWith('SID-') ? sidRaw.toUpperCase() : `SID-${sidRaw}`;
+        const mandal = item.mandal || item['mandal name'] || 'Yuvak Mandal (ages 22-35)';
+        
+        const deptsRaw = item['preferred departments'] || item['departments'] || item['dept'] || item['department'] || '';
+        const preferredDepartments = typeof deptsRaw === 'string' ? deptsRaw.split(/;|,/).map(d => d.trim()).filter(Boolean) : ['Annakut Setup/Windup'];
+
+        return {
+          id: `sub-excel-${Date.now()}-${idx}`,
+          sid: cleanSid,
+          fullName: name,
+          email: item.email || item['email address'] || '',
+          mandal: mandal,
+          preferredDepartments: preferredDepartments.length > 0 ? preferredDepartments : ['Annakut Setup/Windup'],
+          availability: {
+            diwali: ['9am to 1pm', '1pm to 5pm'],
+            setup_windup: ['1pm to 5pm', '5pm to 10pm'],
+            annakut: ['5pm to 10pm']
+          },
+          customAvailability: { diwali: '', setup_windup: '', annakut: '' },
+          status: 'Pending',
+          assignedShifts: []
+        };
+      });
+
+      setSubmissions(prev => {
+        const existingSids = new Set(prev.map(s => s.sid.toUpperCase()));
+        const uniqueNew = newSevaks.filter(s => !existingSids.has(s.sid.toUpperCase()));
+        return [...uniqueNew, ...prev];
+      });
+
+      setImportStatusMsg({ text: `Successfully extracted ${newSevaks.length} Sevak record(s) into Volunteer Allocation!`, type: 'success' });
+      setExcelPasteData('');
       setLastSynced(new Date().toLocaleTimeString());
-    }, 1200);
+    } catch (err) {
+      setImportStatusMsg({ text: 'Failed to parse Excel data format. Ensure columns contain Name, SID, Mandal, etc.', type: 'error' });
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setExcelFile(file.name);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target.result;
+      handleProcessExcelData(content);
+    };
+    reader.readAsText(file);
   };
 
   const handleImportCSVData = () => {
@@ -274,7 +358,7 @@ export default function App() {
         setShowImportModal(false);
       }
     } catch (e) {
-      alert('Invalid JSON format. Please paste a valid JSON array.');
+      setImportStatusMsg({ text: 'Invalid JSON format. Please paste a valid JSON array.', type: 'error' });
     }
   };
 
@@ -303,6 +387,14 @@ export default function App() {
     } else {
       setPortalMessage('Invalid Satsangi ID (SID). Please enter your numeric ID (e.g. 1001 or 1002).');
     }
+  };
+
+  const handleSyncMicrosoftForm = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
+      setIsSyncing(false);
+      setLastSynced(new Date().toLocaleTimeString());
+    }, 1000);
   };
 
   const assignVolunteerToShift = (submissionId, shiftId) => {
@@ -373,33 +465,29 @@ export default function App() {
   };
 
   const handleDeleteVolunteer = (submissionId) => {
-    if (confirm("Are you sure you want to permanently delete this volunteer record?")) {
-      setShifts(prevShifts =>
-        prevShifts.map(shift => ({
-          ...shift,
-          assignedVolunteers: shift.assignedVolunteers.filter(id => id !== submissionId),
-          leadVolunteerId: shift.leadVolunteerId === submissionId ? null : shift.leadVolunteerId
-        }))
-      );
-      setSubmissions(prevSubs => prevSubs.filter(sub => sub.id !== submissionId));
-    }
+    setShifts(prevShifts =>
+      prevShifts.map(shift => ({
+        ...shift,
+        assignedVolunteers: shift.assignedVolunteers.filter(id => id !== submissionId),
+        leadVolunteerId: shift.leadVolunteerId === submissionId ? null : shift.leadVolunteerId
+      }))
+    );
+    setSubmissions(prevSubs => prevSubs.filter(sub => sub.id !== submissionId));
   };
 
   const handleDeleteShiftFromMasterRota = (shiftId) => {
     const shift = shifts.find(s => s.id === shiftId);
     if (!shift) return;
 
-    if (confirm(`Are you sure you want to completely remove "${shift.title}" from the Master Rota?`)) {
-      setSubmissions(prev => 
-        prev.map(sub => ({
-          ...sub,
-          assignedShifts: sub.assignedShifts.filter(id => id !== shiftId),
-          status: sub.assignedShifts.filter(id => id !== shiftId).length === 0 ? 'Pending' : sub.status
-        }))
-      );
+    setSubmissions(prev => 
+      prev.map(sub => ({
+        ...sub,
+        assignedShifts: sub.assignedShifts.filter(id => id !== shiftId),
+        status: sub.assignedShifts.filter(id => id !== shiftId).length === 0 ? 'Pending' : sub.status
+      }))
+    );
 
-      setShifts(prev => prev.filter(s => s.id !== shiftId));
-    }
+    setShifts(prev => prev.filter(s => s.id !== shiftId));
   };
 
   const handleCreateNewShift = (e) => {
@@ -499,7 +587,6 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-gradient-to-b from-amber-50/70 via-orange-50/40 to-amber-100/50 text-slate-800'} transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden`}>
-      
       {/* Background Decorative Rings */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-25 dark:opacity-15">
         <div className="absolute top-0 -left-20 w-96 h-96 bg-amber-400 rounded-full filter blur-3xl animate-pulse"></div>
@@ -546,122 +633,113 @@ export default function App() {
 
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
             </button>
           </div>
         </div>
+
+        {/* Navigation Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-200/50 dark:border-slate-800">
+          <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
+            <button
+              onClick={() => setActiveTab('portal')}
+              className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                activeTab === 'portal'
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <User className="w-4 h-4" /> Sevak Rota Schedule
+            </button>
+
+            {isAdminLoggedIn && (
+              <>
+                <button
+                  onClick={() => setActiveTab('form')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'form'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Excel Data Connector
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('allocation')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'allocation'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Users className="w-4 h-4" /> Volunteer Allocation
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('masterRota')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'masterRota'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" /> Master Rota
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('ragGaps')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'ragGaps'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" /> RAG & Calendar Matrix
+                </button>
+              </>
+            )}
+          </nav>
+        </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
+      {/* Main Content Body */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
 
-        {/* Dynamic Navigation Bar */}
-        {loggedInSevak && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200/80 dark:border-slate-800 pb-3">
-            <div className="flex items-center gap-1.5 bg-amber-100/60 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-amber-200/50 dark:border-slate-800 overflow-x-auto w-full sm:w-auto">
-              <button
-                onClick={() => setActiveTab('portal')}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'portal' 
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md' 
-                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
-                }`}
-              >
-                <User className="w-4 h-4" />
-                Sevak Rota Schedule
-              </button>
-
-              {isAdminLoggedIn && (
-                <>
-                  <button
-                    onClick={() => setActiveTab('form')}
-                    className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                      activeTab === 'form' 
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md' 
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    Volunteer Form
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('allocation')}
-                    className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                      activeTab === 'allocation' 
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md' 
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    Volunteer Allocation
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('masterRota')}
-                    className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                      activeTab === 'masterRota' 
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md' 
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Master Rota
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('ragGaps')}
-                    className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                      activeTab === 'ragGaps' 
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md' 
-                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    Calendar & RAG
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* SECTION 1: SEVAK PORTAL */}
+        {/* SECTION 1: SEVAK PORTAL LOGIN & PERSONAL ROTA */}
         {activeTab === 'portal' && (
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="max-w-xl mx-auto space-y-6">
             {!loggedInSevak ? (
-              <div className={`p-6 sm:p-10 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white/90 border-amber-200'} shadow-xl space-y-6 text-center relative overflow-hidden backdrop-blur-md`}>
-                <div className="w-16 h-16 bg-gradient-to-tr from-amber-500 via-orange-500 to-red-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-orange-500/30">
-                  <KeyRound className="w-8 h-8" />
-                </div>
-
-                <div>
-                  <h2 className={`text-xl sm:text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                    BAPS Luton Diwali & Annakut Volunteer Portal
+              <div className={`p-6 sm:p-8 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-2xl space-y-6 text-center`}>
+                <div className="space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-orange-500/30">
+                    <KeyRound className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                    Jay Swaminarayan
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-                    View your seva rotas.
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    Enter your numeric Satsangi ID (SID) to view your allocated Diwali & Annakut 2026 Seva Rota.
                   </p>
                 </div>
 
-                <form onSubmit={handlePortalLogin} className="space-y-4 max-w-md mx-auto">
+                <form onSubmit={handlePortalLogin} className="space-y-4">
                   <div className="relative">
-                    <KeyRound className="w-5 h-5 absolute left-4 top-3.5 text-amber-500" />
                     <input
                       type="text"
-                      required
+                      placeholder="e.g. 31056 or 1002"
                       value={portalSidInput}
                       onChange={e => setPortalSidInput(e.target.value)}
-                      placeholder="Enter your Satsangi ID Number"
-                      className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border text-sm sm:text-base font-bold tracking-wider focus:ring-2 focus:ring-amber-500 outline-none transition-all ${
-                        darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-900'
+                      className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
+                        darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500' : 'bg-slate-50 border-amber-200 text-slate-900 focus:border-amber-500'
                       }`}
                     />
                   </div>
 
                   {portalMessage && (
-                    <p className="text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-200 dark:border-rose-800">
+                    <p className="text-xs font-bold text-rose-500">
                       {portalMessage}
                     </p>
                   )}
@@ -706,10 +784,10 @@ export default function App() {
                         )}
                       </div>
                       <div className="mt-2">
-                        <h2 className={`text-xl sm:text-2xl font-black ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
                           Jay Swaminarayan,
                         </h2>
-                        <span className={`block text-xl sm:text-2xl font-black ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>
+                        <span className="block text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
                           {loggedInSevak.fullName}
                         </span>
                       </div>
@@ -803,60 +881,118 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 2: VOLUNTEER FORM */}
+        {/* SECTION 2: EXCEL DATA CONNECTOR */}
         {isAdminLoggedIn && activeTab === 'form' && (
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-6`}>
-              <div className="flex items-center justify-between">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className={`p-6 sm:p-8 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-6`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                    Microsoft Form Integration & Sync
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                    Microsoft Excel Responses Data Connector
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Manage responses submitted via the official Microsoft Form link.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Extract Sevak responses directly from your MS Forms Excel sheet (Name, SID, Mandal, Preferred Seva & Time) to automatically populate the Volunteer Allocation list.
                   </p>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Last Data Import</span>
+                  <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">{lastSynced}</span>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Live Form URL
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={msFormUrl}
-                      onChange={e => setMsFormUrl(e.target.value)}
-                      className={`flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono outline-none ${
-                        darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
-                      }`}
-                    />
-                    <a
-                      href={msFormUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" /> Open Form
-                    </a>
-                  </div>
+              {/* Status Message Display */}
+              {importStatusMsg.text && (
+                <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+                  importStatusMsg.type === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20'
+                }`}>
+                  {importStatusMsg.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  {importStatusMsg.text}
                 </div>
+              )}
 
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
-                  <div className="font-bold flex items-center gap-2 text-amber-900 dark:text-amber-200">
-                    <RefreshCw className="w-4 h-4 text-amber-600" /> Sync Status
+              {/* Option 1: Direct Excel File Upload (.CSV / .TSV / exported sheet) */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Option 1: Upload Exported Microsoft Excel Responses File (.csv / .txt)
+                </h3>
+                <div className="relative border-2 border-dashed border-amber-300 dark:border-slate-700 rounded-2xl p-6 text-center hover:bg-amber-500/5 transition-all">
+                  <input
+                    type="file"
+                    accept=".csv,.tsv,.txt,.json"
+                    onChange={handleFileUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="space-y-2 pointer-events-none">
+                    <Upload className="w-8 h-8 mx-auto text-amber-500" />
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {excelFile ? `Selected File: ${excelFile}` : 'Click or drop your Excel CSV / Response export file here'}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Supports MS Forms exported spreadsheets containing Name, SID, Mandal & Department preferences
+                    </p>
                   </div>
-                  <div className="text-slate-600 dark:text-slate-300">Last Synced: <strong className="font-mono">{lastSynced}</strong></div>
                 </div>
+              </div>
+
+              {/* Option 2: Copy & Paste Cells Directly from Microsoft Excel */}
+              <div className="space-y-3 pt-2">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                  <span>Option 2: Copy & Paste Table Cells directly from Excel</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Headers: Name | SID | Mandal | Preferred Departments</span>
+                </h3>
+
+                <textarea
+                  rows={5}
+                  value={excelPasteData}
+                  onChange={e => setExcelPasteData(e.target.value)}
+                  placeholder={`Paste rows copied from Excel here...\n\nExample format:\nFull Name\tSID\tMandal\tPreferred Departments\nJayesh Patel\t31056\tYuvak Mandal\tParking, Catering\nNeha Shah\t1002\tYuvati Mandal\tWelcome, Housekeeping`}
+                  className={`w-full p-4 rounded-2xl text-xs font-mono border outline-none ${
+                    darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-900'
+                  }`}
+                />
 
                 <button
-                  onClick={() => setShowImportModal(true)}
-                  className="w-full py-3 px-4 bg-slate-800 text-white text-xs font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-md"
+                  onClick={() => handleProcessExcelData()}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
                 >
-                  <Download className="w-4 h-4" /> Import Excel Response Data (JSON)
+                  <FileSpreadsheet className="w-4 h-4" /> Extract & Load Sevaks into Allocation Tab
                 </button>
+              </div>
+
+              {/* Quick Summary of Extracted Response Data */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <span>Active Responses Ready for Allocation ({submissions.length})</span>
+                  <button
+                    onClick={() => setActiveTab('allocation')}
+                    className="text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                  >
+                    Go to Allocation Tab →
+                  </button>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  {submissions.map(sub => (
+                    <div key={sub.id} className="p-3 flex items-center justify-between text-xs bg-slate-50/50 dark:bg-slate-800/40">
+                      <div>
+                        <strong className="text-slate-900 dark:text-slate-100">{sub.fullName}</strong>
+                        <span className="ml-2 text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">({sub.sid})</span>
+                        <p className="text-[11px] text-slate-500">{sub.mandal}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          sub.assignedShifts.length > 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                        }`}>
+                          {sub.assignedShifts.length > 0 ? `${sub.assignedShifts.length} Shifted` : 'Pending Allocation'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
