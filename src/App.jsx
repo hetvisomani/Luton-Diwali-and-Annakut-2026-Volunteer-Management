@@ -389,9 +389,6 @@ const loadData = async () => {
 };
 
 // Load database data when the website first opens
-useEffect(() => {
-  loadData();
-}, []);
 
   // Modals & form states
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
@@ -886,50 +883,102 @@ useEffect(() => {
   }
 
   try {
-    const { data, error } = await supabase.rpc('check_sid_login', {
-      input_sid: cleanInput
-    });
+    // First check whether this SID exists and whether it is an admin
+    const { data: loginData, error: loginError } = await supabase.rpc(
+      'check_sid_login',
+      {
+        input_sid: cleanInput
+      }
+    );
 
-    if (error) throw error;
+    if (loginError) throw loginError;
 
-    if (!data?.success) {
+    if (!loginData?.success) {
       setPortalMessage(
         'Invalid Satsangi ID (SID). Please enter your numeric ID.'
       );
       return;
     }
 
-    const found = submissions.find(
-      s => s.id === data.sevak_id
-    );
-
-    if (!found) {
-      setPortalMessage(
-        'Your details could not be loaded. Please refresh and try again.'
+    // ADMIN LOGIN
+    if (loginData.is_admin) {
+      const { data: adminData, error: adminError } = await supabase.rpc(
+        'get_admin_data',
+        {
+          input_sid: cleanInput
+        }
       );
-      return;
-    }
-    
-    if (data.is_admin) {
-      const adminDataLoaded = await loadAdminData(cleanInput);
-      
-      if (!adminDataLoaded) {
-        setPortalMessage(
-          'Admin data could not be loaded. Please try again.'
+
+      if (adminError) throw adminError;
+
+      if (!adminData?.success) {
+        throw new Error(
+          adminData?.message || 'Admin data could not be loaded'
         );
-        return;
       }
+
+      const loadedSubmissions = (adminData.submissions || []).map(
+        submissionFromDb
+      );
+
+      const loadedShifts = (adminData.shifts || []).map(
+        shiftFromDb
+      );
+
+      setSubmissions(loadedSubmissions);
+      setShifts(loadedShifts);
+
+      const adminSevak = loadedSubmissions.find(
+        sub => sub.id === loginData.sevak_id
+      );
+
+      if (!adminSevak) {
+        throw new Error('Admin sevak record could not be loaded');
+      }
+
+      setLoggedInSevak({
+        ...adminSevak,
+        isAdmin: true
+      });
     }
-    
-    setLoggedInSevak({
-      ...found,
-      isAdmin: data.is_admin
-    });
+
+    // NORMAL SEVAK LOGIN
+    else {
+      const { data: portalData, error: portalError } = await supabase.rpc(
+        'get_sevak_portal_data',
+        {
+          input_sid: cleanInput
+        }
+      );
+
+      if (portalError) throw portalError;
+
+      if (!portalData?.success) {
+        throw new Error(
+          portalData?.message || 'Sevak portal could not be loaded'
+        );
+      }
+
+      const sevak = submissionFromDb(portalData.sevak);
+
+      setSubmissions([sevak]);
+
+      setShifts(
+        (portalData.shifts || []).map(shiftFromDb)
+      );
+
+      setLoggedInSevak({
+        ...sevak,
+        isAdmin: false
+      });
+    }
+
     setPortalMessage('');
     setActiveTab('portal');
-  
+
   } catch (error) {
     console.error('SID login error:', error);
+
     setPortalMessage(
       'Unable to log in right now. Please try again.'
     );
