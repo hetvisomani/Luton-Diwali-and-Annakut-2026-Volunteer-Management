@@ -33,7 +33,7 @@ import { supabase } from './supabaseClient';
 const DEPARTMENTS = [
   "Annakut Setup/Windup",
   "AV",
-  "Catering/Food stalls",
+  "Catering Kitchen/Food stalls",
   "Finance",
   "Housekeeping",
   "Mandir Shop",
@@ -44,9 +44,11 @@ const DEPARTMENTS = [
   "Sabha Vyavestha",
   "Sampark",
   "Welcome",
-  "Flow management",
   "Fun Zone Stalls",
-  "Mehndi, Tattoo, Face Painting"
+  "Mehndi, Tattoo, Face Painting",
+  "Crèche",
+  "Catering Kitchen",
+  "Food Stalls"
 ];
 
 const TIME_SLOTS = [
