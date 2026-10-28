@@ -56,9 +56,9 @@ const TIME_SLOTS = [
 ];
 
 const DAYS = [
-  { id: 'diwali', label: 'Diwali Day', date: '08/11/2026' },
-  { id: 'setup_windup', label: 'Annakut Setup / Preparation', date: '09/11/2026' },
-  { id: 'annakut', label: 'Annakut / New Year Day', date: '10/11/2026' }
+  { id: 'diwali', label: 'Sunday 8 November (Diwali)', date: '08/11/2026' },
+  { id: 'setup_windup', label: 'Monday 9 November', date: '09/11/2026' },
+  { id: 'annakut', label: 'Tuesday 10 November (Annakut)', date: '10/11/2026' }
 ];
 
 
