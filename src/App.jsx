@@ -407,9 +407,12 @@ const loadData = async () => {
   const [allocationFilter, setAllocationFilter] = useState('ALL');
   const [selectedAllocationDays, setSelectedAllocationDays] = useState({});
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
-  const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
-  const [ragDeptFilter, setRagDeptFilter] = useState('ALL');
+  const [selectedDayFilter, setSelectedDayFilter] = useState('ALL')
+    const [ragDeptFilter, setRagDeptFilter] = useState('ALL');
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(DAYS[0].id);
+  // Dynamic RAG calendar controls
+  const [ragGapsOnly, setRagGapsOnly] = useState(false);
+  const [selectedRagShift, setSelectedRagShift] = useState(null);
 
   const [newShift, setNewShift] = useState({
     department: DEPARTMENTS[0],
@@ -1441,12 +1444,234 @@ const loadData = async () => {
       return matchesSearch && matchesFilter;
     });
   }, [submissions, searchQuery, allocationFilter]);
-
-  const filteredRagDepartments = useMemo(() => {
-    if (ragDeptFilter === 'ALL') return DEPARTMENTS;
-    return DEPARTMENTS.filter(d => d === ragDeptFilter);
-  }, [ragDeptFilter]);
-
+  
+  // ---------------------------------------------------------
+  // DYNAMIC RAG CALENDAR HELPERS
+  // ---------------------------------------------------------
+  // Convert a single written time such as:
+  // "9am", "9:30am", "9.30am", "2pm", "8.30pm"
+  // into minutes after midnight.
+  const parseClockTime = (rawTime) => {
+    if (!rawTime) return null;
+    
+    const cleaned = String(rawTime)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/\./g, ':');
+    const match = cleaned.match(/^(\d{1,2})(?::(\d{1,2}))?(am|pm)$/);
+    if (!match) return null;
+    
+    let hour = Number(match[1]);
+    const minute = Number(match[2] || 0);
+    const period = match[3];
+    
+    if (
+      hour < 1 ||
+      hour > 12 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      return null;
+    }
+    if (period === 'am') {
+      if (hour === 12) hour = 0;
+    } else {
+      if (hour !== 12) hour += 12;
+    }
+    return hour * 60 + minute;
+  };
+  
+  // Read a complete shift time such as:
+  // "9am to 11am"
+  // "2pm - 5pm"
+  // "8.30pm to 10.30pm"
+  // "9:00am – 1:00pm"
+  const parseShiftTime = (timeSlot) => {
+    if (!timeSlot) return null;
+    
+    const normalised = String(timeSlot)
+      .trim()
+      .toLowerCase()
+      .replace(/[–—]/g, '-');
+    
+    const parts = normalised
+      .split(/\s+(?:to|-)\s+/)
+      .map(part => part.trim())
+      .filter(Boolean);
+    
+    if (parts.length !== 2) return null;
+    const start = parseClockTime(parts[0]);
+    const end = parseClockTime(parts[1]);
+    
+    if (start === null || end === null || end <= start) {
+    return null;
+    }
+    
+    return {
+      start,
+      end,
+      duration: end - start
+    };
+  };
+  
+  // Convert minutes after midnight back into a neat label.
+  const formatTimelineTime = (minutes) => {
+    const hour24 = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    const period = hour24 >= 12 ? 'pm' : 'am';
+    let hour12 = hour24 % 12;
+    
+    if (hour12 === 0) hour12 = 12;
+    return mins === 0
+      
+      ? `${hour12}${period}`
+      : `${hour12}:${String(mins).padStart(2, '0')}${period}`;
+  };
+  // All real shifts for the currently selected RAG day/department.
+  const ragDayShifts = useMemo(() => {
+    return shifts
+      .filter(shift => {
+        const matchesDay = shift.day === selectedCalendarDay;
+        const matchesDepartment =
+          ragDeptFilter === 'ALL' ||
+          shift.department === ragDeptFilter;
+        const assigned = shift.assignedVolunteers?.length || 0;
+        const required = Number(shift.requiredVolunteers) || 0;
+        const matchesGapFilter =
+          !ragGapsOnly || assigned < required;
+        
+        return (
+          matchesDay &&
+          matchesDepartment &&
+          matchesGapFilter
+        );
+      })
+      .map(shift => ({
+        ...shift,
+        parsedTime: parseShiftTime(shift.timeSlot)
+      }))
+      .sort((a, b) => {
+        const aStart = a.parsedTime?.start ?? 99999;
+        const bStart = b.parsedTime?.start ?? 99999;
+        if (a.department !== b.department) {
+          return a.department.localeCompare(b.department);
+        }
+        return aStart - bStart;
+      });
+  }, [
+    shifts,
+    selectedCalendarDay,
+    ragDeptFilter,
+    ragGapsOnly
+  ]);
+  
+  // Only departments that actually have shifts matching the current filters.
+  const ragDepartments = useMemo(() => {
+    return [...new Set(ragDayShifts.map(shift => shift.department))];
+  }, [ragDayShifts]);
+  
+  // Work out the earliest and latest REAL shift times for this day.
+  // We add a small amount of space around the first/last shift.
+  const ragTimelineBounds = useMemo(() => {
+    const validTimes = ragDayShifts
+      .map(shift => shift.parsedTime)
+      .filter(Boolean);
+    if (validTimes.length === 0) {
+      return {
+        start: 8 * 60,
+        end: 22 * 60,
+        duration: 14 * 60
+      };
+    }
+    const earliest = Math.min(...validTimes.map(time => time.start));
+    const latest = Math.max(...validTimes.map(time => time.end));
+    const start = Math.max(
+      0,
+      Math.floor(earliest / 60) * 60
+    );
+    const end = Math.min(
+      24 * 60,
+      Math.ceil(latest / 60) * 60
+    );
+    return {
+      start,
+      end,
+      duration: Math.max(60, end - start)
+    };
+  }, [ragDayShifts]);
+  
+  // Hour labels displayed along the top of the timeline.
+  const ragTimelineHours = useMemo(() => {
+    const hours = [];
+    for (
+      let time = ragTimelineBounds.start;
+      time <= ragTimelineBounds.end;
+      time += 60
+    ) {
+      hours.push(time);
+    }
+    return hours;
+  }, [ragTimelineBounds]);
+  
+  // Stats specifically for the currently selected RAG day/department.
+  // IMPORTANT: this ignores "Gaps Only" so switching that button
+  // does not change the dashboard totals.
+  const ragDayStats = useMemo(() => {
+    const relevantShifts = shifts.filter(shift => {
+      const matchesDay = shift.day === selectedCalendarDay;
+      const matchesDepartment =
+        ragDeptFilter === 'ALL' ||
+        shift.department === ragDeptFilter;
+      return matchesDay && matchesDepartment;
+    });
+    const required = relevantShifts.reduce(
+      (total, shift) =>
+        total + (Number(shift.requiredVolunteers) || 0),
+      0
+    );
+    const assigned = relevantShifts.reduce(
+      (total, shift) =>
+        total + (shift.assignedVolunteers?.length || 0),
+      0
+    );
+    const fullShifts = relevantShifts.filter(
+      shift =>
+        (shift.assignedVolunteers?.length || 0) >=
+        (Number(shift.requiredVolunteers) || 0)
+    ).length;
+    
+    const partialShifts = relevantShifts.filter(shift => {
+      const allocated = shift.assignedVolunteers?.length || 0;
+      const needed = Number(shift.requiredVolunteers) || 0;
+      
+      return allocated > 0 && allocated < needed;
+    }).length;
+    
+    const emptyShifts = relevantShifts.filter(
+      shift => (shift.assignedVolunteers?.length || 0) === 0
+    ).length;
+    
+    return {
+      shiftCount: relevantShifts.length,
+      required,
+      assigned,
+      gap: Math.max(0, required - assigned),
+      fullShifts,
+      partialShifts,
+      emptyShifts,
+      coverage:
+        required > 0
+        ? Math.min(100, Math.round((assigned / required) * 100))
+        : 0
+    };
+  }, [
+    shifts,
+    selectedCalendarDay,
+    ragDeptFilter
+  ]);
+  
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-gradient-to-b from-amber-50/70 via-orange-50/40 to-amber-100/50 text-slate-800'} transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden`}>
       {/* Background Decorative Rings */}
@@ -2320,170 +2545,900 @@ const loadData = async () => {
             </div>
           </div>
         )}
+        
+        {/* SECTION 5: DYNAMIC RAG TIMELINE CONTROL CENTRE */}
+{isAdminLoggedIn && activeTab === 'ragGaps' && (
+  <div className="space-y-6">
 
-        {/* SECTION 5: RAG ANALYTICS & CALENDAR MATRIX VIEW */}
-        {isAdminLoggedIn && activeTab === 'ragGaps' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div
-                  className={`text-[10px] font-bold uppercase ${
-                    darkMode ? 'text-slate-300' : 'text-slate-600'
-                  }`}
-                >
-                  Total Capacity Needed
-                </div>
-                <div
-                  className={`text-2xl font-black ${
-                    darkMode ? 'text-white' : 'text-slate-900'
-                  }`}
-                >
-                  {totalCapacityStats.totalReq}
-                </div>
-              </div>
+    {/* -------------------------------------------------- */}
+    {/* RAG HEADER */}
+    {/* -------------------------------------------------- */}
+    <div
+      className={`p-5 sm:p-6 rounded-3xl border shadow-sm ${
+        darkMode
+          ? 'bg-slate-900 border-slate-800'
+          : 'bg-white border-amber-200'
+      }`}
+    >
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
 
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">Allocated Shifts</div>
-                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{totalCapacityStats.totalAssigned}</div>
-              </div>
-
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-rose-500">Unfilled Gaps</div>
-                <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{totalCapacityStats.gaps}</div>
-              </div>
-
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-1`}>
-                <div className="text-[10px] font-bold uppercase text-amber-600">Total Sevaks</div>
-                <div className="text-2xl font-black text-amber-600">{submissions.length}</div>
-              </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+              <BarChart3 className="w-5 h-5" />
             </div>
 
-            {/* Interactive RAG Calendar Matrix with Dept Filter */}
-            <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm space-y-6`}>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h3
-                    className={`text-base font-bold flex items-center gap-2 ${
-                      darkMode ? 'text-white' : 'text-slate-900'
-                    }`}
-                  >
-                    <Calendar className="w-5 h-5 text-amber-500" />
-                    Event RAG Calendar Schedule
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Filter by department and select day to review RAG coverage.
-                  </p>
-                </div>
+            <div>
+              <h2
+                className={`text-lg sm:text-xl font-black ${
+                  darkMode ? 'text-white' : 'text-slate-900'
+                }`}
+              >
+                Event RAG Control Centre
+              </h2>
 
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  {/* Department Filter for RAG */}
-                  <select
-                    value={ragDeptFilter}
-                    onChange={e => setRagDeptFilter(e.target.value)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border outline-none ${
-                      darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
-                    }`}
-                  >
-                    <option value="ALL">All Departments</option>
-                    {DEPARTMENTS.map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-
-                  {/* Day Navigation Tabs */}
-                  <div className="flex items-center gap-1 bg-amber-100/50 dark:bg-slate-800 p-1 rounded-2xl overflow-x-auto">
-                    {DAYS.map(day => (
-                      <button
-                        key={day.id}
-                        onClick={() => setSelectedCalendarDay(day.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                          selectedCalendarDay === day.id
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
-                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                        }`}
-                      >
-                        {day.label.split('/')[0]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* RAG Legend Banner */}
-              <div className="flex flex-wrap items-center gap-4 text-xs p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-                <span className="font-bold text-slate-500">RAG Legend:</span>
-                <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Green (Full Coverage)
-                </span>
-                <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Amber (Partial)
-                </span>
-                <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Red (Unassigned)
-                </span>
-              </div>
-
-              {/* Time Slot Calendar Grid Matrix */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px]">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-400">
-                      <th className="py-3 px-4 font-bold uppercase tracking-wider">Department</th>
-                      {TIME_SLOTS.map(slot => (
-                        <th key={slot} className="py-3 px-4 font-bold uppercase tracking-wider text-center">
-                          {slot}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                    {filteredRagDepartments.map(dept => {
-                      return (
-                        <tr key={dept} className="hover:bg-amber-50/40 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
-                            {dept}
-                          </td>
-                          {TIME_SLOTS.map(slot => {
-                            const shift = shifts.find(s => s.department === dept && s.day === selectedCalendarDay && s.timeSlot === slot);
-                            if (!shift) return <td key={slot} className="text-center text-slate-300">-</td>;
-
-                            const assignedCount = shift.assignedVolunteers.length;
-                            const reqCount = shift.requiredVolunteers;
-                            const gap = Math.max(0, reqCount - assignedCount);
-                            const isFilled = assignedCount >= reqCount;
-
-                            return (
-                              <td key={slot} className="py-2 px-3 text-center">
-                                <div className={`p-2.5 rounded-2xl border text-center space-y-1 ${
-                                  isFilled
-                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
-                                    : assignedCount > 0
-                                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300'
-                                    : 'bg-rose-500/15 border-rose-500/40 text-rose-800 dark:text-rose-300'
-                                }`}>
-                                  <div className="font-black text-xs">
-                                    {assignedCount} / {reqCount}
-                                  </div>
-                                  <div className="text-[10px] font-bold">
-                                    {isFilled ? (
-                                      <span className="text-emerald-600 dark:text-emerald-400">100% Full</span>
-                                    ) : (
-                                      <span className="text-rose-600 dark:text-rose-400">{gap} Needed</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <p
+                className={`text-xs mt-0.5 ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                Live staffing coverage based directly on your Master Rota.
+              </p>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Day buttons */}
+        <div
+          className={`flex gap-1.5 p-1.5 rounded-2xl overflow-x-auto ${
+            darkMode ? 'bg-slate-800' : 'bg-amber-50'
+          }`}
+        >
+          {DAYS.map(day => (
+            <button
+              key={day.id}
+              onClick={() => {
+                setSelectedCalendarDay(day.id);
+                setSelectedRagShift(null);
+              }}
+              className={`px-3 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold whitespace-nowrap transition-all ${
+                selectedCalendarDay === day.id
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
+                  : darkMode
+                    ? 'text-slate-300 hover:bg-slate-700'
+                    : 'text-slate-600 hover:bg-white'
+              }`}
+            >
+              {day.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+
+
+    {/* -------------------------------------------------- */}
+    {/* COVERAGE OVERVIEW */}
+    {/* -------------------------------------------------- */}
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+
+      {/* Overall coverage */}
+      <div
+        className={`col-span-2 lg:col-span-1 p-4 rounded-2xl border ${
+          darkMode
+            ? 'bg-slate-900 border-slate-800'
+            : 'bg-white border-amber-200'
+        }`}
+      >
+        <div
+          className={`text-[10px] uppercase font-black tracking-wider ${
+            darkMode ? 'text-slate-400' : 'text-slate-500'
+          }`}
+        >
+          Coverage
+        </div>
+
+        <div className="flex items-end gap-2 mt-1">
+          <span
+            className={`text-3xl font-black ${
+              ragDayStats.coverage >= 100
+                ? 'text-emerald-500'
+                : ragDayStats.coverage >= 60
+                  ? 'text-amber-500'
+                  : 'text-rose-500'
+            }`}
+          >
+            {ragDayStats.coverage}%
+          </span>
+        </div>
+
+        <div
+          className={`h-2 rounded-full mt-3 overflow-hidden ${
+            darkMode ? 'bg-slate-800' : 'bg-slate-100'
+          }`}
+        >
+          <div
+            className={`h-full rounded-full transition-all ${
+              ragDayStats.coverage >= 100
+                ? 'bg-emerald-500'
+                : ragDayStats.coverage >= 60
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500'
+            }`}
+            style={{
+              width: `${Math.min(100, ragDayStats.coverage)}%`
+            }}
+          />
+        </div>
+      </div>
+
+
+      {/* Full */}
+      <div
+        className={`p-4 rounded-2xl border ${
+          darkMode
+            ? 'bg-emerald-950/30 border-emerald-900'
+            : 'bg-emerald-50 border-emerald-200'
+        }`}
+      >
+        <div className="text-[10px] font-black uppercase text-emerald-600">
+          Full Shifts
+        </div>
+        <div className="text-2xl font-black text-emerald-600 mt-1">
+          {ragDayStats.fullShifts}
+        </div>
+      </div>
+
+
+      {/* Partial */}
+      <div
+        className={`p-4 rounded-2xl border ${
+          darkMode
+            ? 'bg-amber-950/30 border-amber-900'
+            : 'bg-amber-50 border-amber-200'
+        }`}
+      >
+        <div className="text-[10px] font-black uppercase text-amber-600">
+          Partial
+        </div>
+        <div className="text-2xl font-black text-amber-600 mt-1">
+          {ragDayStats.partialShifts}
+        </div>
+      </div>
+
+
+      {/* Empty */}
+      <div
+        className={`p-4 rounded-2xl border ${
+          darkMode
+            ? 'bg-rose-950/30 border-rose-900'
+            : 'bg-rose-50 border-rose-200'
+        }`}
+      >
+        <div className="text-[10px] font-black uppercase text-rose-600">
+          Unassigned
+        </div>
+        <div className="text-2xl font-black text-rose-600 mt-1">
+          {ragDayStats.emptyShifts}
+        </div>
+      </div>
+
+
+      {/* Sevaks needed */}
+      <div
+        className={`p-4 rounded-2xl border ${
+          darkMode
+            ? 'bg-slate-900 border-slate-800'
+            : 'bg-white border-amber-200'
+        }`}
+      >
+        <div
+          className={`text-[10px] font-black uppercase ${
+            darkMode ? 'text-slate-400' : 'text-slate-500'
+          }`}
+        >
+          Sevaks Needed
+        </div>
+
+        <div
+          className={`text-2xl font-black mt-1 ${
+            ragDayStats.gap > 0
+              ? 'text-rose-500'
+              : 'text-emerald-500'
+          }`}
+        >
+          {ragDayStats.gap}
+        </div>
+      </div>
+    </div>
+
+
+    {/* -------------------------------------------------- */}
+    {/* FILTERS */}
+    {/* -------------------------------------------------- */}
+    <div
+      className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+        darkMode
+          ? 'bg-slate-900 border-slate-800'
+          : 'bg-white border-amber-200'
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+
+        <Filter
+          className={`w-4 h-4 ${
+            darkMode ? 'text-slate-400' : 'text-slate-500'
+          }`}
+        />
+
+        <select
+          value={ragDeptFilter}
+          onChange={e => {
+            setRagDeptFilter(e.target.value);
+            setSelectedRagShift(null);
+          }}
+          className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+            darkMode
+              ? 'bg-slate-800 border-slate-700 text-white'
+              : 'bg-slate-50 border-slate-200 text-slate-800'
+          }`}
+        >
+          <option value="ALL">All Departments</option>
+
+          {DEPARTMENTS.map(dept => (
+            <option key={dept} value={dept}>
+              {dept}
+            </option>
+          ))}
+        </select>
+
+
+        <button
+          onClick={() => {
+            setRagGapsOnly(prev => !prev);
+            setSelectedRagShift(null);
+          }}
+          className={`px-3 py-2 rounded-xl text-xs font-black border transition-all ${
+            ragGapsOnly
+              ? 'bg-rose-500 border-rose-500 text-white shadow-md'
+              : darkMode
+                ? 'bg-slate-800 border-slate-700 text-slate-300'
+                : 'bg-white border-slate-200 text-slate-600'
+          }`}
+        >
+          {ragGapsOnly ? 'Showing Gaps Only' : 'Show Gaps Only'}
+        </button>
+      </div>
+
+
+      <div
+        className={`text-xs font-bold ${
+          darkMode ? 'text-slate-400' : 'text-slate-500'
+        }`}
+      >
+        {ragDayStats.shiftCount} shifts ·{' '}
+        {ragDayStats.assigned}/{ragDayStats.required} positions filled
+      </div>
+    </div>
+
+
+    {/* -------------------------------------------------- */}
+    {/* DYNAMIC TIMELINE */}
+    {/* -------------------------------------------------- */}
+    <div
+      className={`rounded-3xl border shadow-sm overflow-hidden ${
+        darkMode
+          ? 'bg-slate-900 border-slate-800'
+          : 'bg-white border-amber-200'
+      }`}
+    >
+      <div
+        className={`px-5 py-4 border-b ${
+          darkMode ? 'border-slate-800' : 'border-slate-200'
+        }`}
+      >
+        <h3
+          className={`font-black flex items-center gap-2 ${
+            darkMode ? 'text-white' : 'text-slate-900'
+          }`}
+        >
+          <Calendar className="w-5 h-5 text-amber-500" />
+
+          {
+            DAYS.find(day => day.id === selectedCalendarDay)
+              ?.label
+          }
+        </h3>
+
+        <p
+          className={`text-xs mt-1 ${
+            darkMode ? 'text-slate-400' : 'text-slate-500'
+          }`}
+        >
+          Shift blocks are positioned using the actual times entered in Master Rota.
+        </p>
+      </div>
+
+
+      {ragDayShifts.length === 0 ? (
+
+        <div className="p-12 text-center">
+          <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+
+          <div
+            className={`font-black ${
+              darkMode ? 'text-white' : 'text-slate-900'
+            }`}
+          >
+            {ragGapsOnly
+              ? 'No staffing gaps found'
+              : 'No shifts found'}
+          </div>
+
+          <p
+            className={`text-xs mt-1 ${
+              darkMode ? 'text-slate-400' : 'text-slate-500'
+            }`}
+          >
+            {ragGapsOnly
+              ? 'All matching shifts are fully covered.'
+              : 'There are no Master Rota shifts matching these filters.'}
+          </p>
+        </div>
+
+      ) : (
+
+        <div className="overflow-x-auto">
+
+          {/* Fixed minimum width keeps timeline readable on phones */}
+          <div className="min-w-[1000px]">
+
+            {/* Timeline heading */}
+            <div
+              className={`flex border-b ${
+                darkMode
+                  ? 'border-slate-800'
+                  : 'border-slate-200'
+              }`}
+            >
+
+              <div
+                className={`w-52 shrink-0 px-4 py-3 text-[10px] font-black uppercase tracking-wider ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                Department
+              </div>
+
+
+              <div className="relative flex-1 h-12">
+                {ragTimelineHours.map(time => {
+                  const left =
+                    ((time - ragTimelineBounds.start) /
+                      ragTimelineBounds.duration) *
+                    100;
+
+                  return (
+                    <div
+                      key={time}
+                      className="absolute top-0 bottom-0"
+                      style={{ left: `${left}%` }}
+                    >
+                      <div
+                        className={`absolute top-3 -translate-x-1/2 text-[10px] font-bold whitespace-nowrap ${
+                          darkMode
+                            ? 'text-slate-400'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        {formatTimelineTime(time)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+
+            {/* Department rows */}
+            {ragDepartments.map(dept => {
+
+              const departmentShifts =
+                ragDayShifts.filter(
+                  shift => shift.department === dept
+                );
+
+              return (
+                <div
+                  key={dept}
+                  className={`flex border-b last:border-b-0 ${
+                    darkMode
+                      ? 'border-slate-800'
+                      : 'border-slate-100'
+                  }`}
+                >
+
+                  {/* Department name */}
+                  <div
+                    className={`w-52 shrink-0 px-4 py-4 flex items-center ${
+                      darkMode
+                        ? 'bg-slate-900'
+                        : 'bg-slate-50/70'
+                    }`}
+                  >
+                    <div>
+                      <div
+                        className={`text-xs font-black ${
+                          darkMode
+                            ? 'text-white'
+                            : 'text-slate-900'
+                        }`}
+                      >
+                        {dept}
+                      </div>
+
+                      <div
+                        className={`text-[10px] mt-1 ${
+                          darkMode
+                            ? 'text-slate-500'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {departmentShifts.length}{' '}
+                        {departmentShifts.length === 1
+                          ? 'shift'
+                          : 'shifts'}
+                      </div>
+                    </div>
+                  </div>
+
+
+                  {/* Timeline area */}
+                  <div
+                    className={`relative flex-1 ${
+                      darkMode
+                        ? 'bg-slate-950/40'
+                        : 'bg-white'
+                    }`}
+                    style={{
+                      minHeight: `${Math.max(
+                        92,
+                        20 + departmentShifts.length * 74
+                      )}px`
+                    }}
+                  >
+
+                    {/* Hour grid lines */}
+                    {ragTimelineHours.map(time => {
+                      const left =
+                        ((time - ragTimelineBounds.start) /
+                          ragTimelineBounds.duration) *
+                        100;
+
+                      return (
+                        <div
+                          key={`grid-${time}`}
+                          className={`absolute top-0 bottom-0 border-l ${
+                            darkMode
+                              ? 'border-slate-800'
+                              : 'border-slate-100'
+                          }`}
+                          style={{ left: `${left}%` }}
+                        />
+                      );
+                    })}
+
+
+                    {/* Real shift blocks */}
+                    {departmentShifts.map((shift, index) => {
+
+                      const assigned =
+                        shift.assignedVolunteers?.length || 0;
+
+                      const required =
+                        Number(shift.requiredVolunteers) || 0;
+
+                      const gap =
+                        Math.max(0, required - assigned);
+
+                      const isFull =
+                        required > 0 &&
+                        assigned >= required;
+
+                      const isPartial =
+                        assigned > 0 &&
+                        assigned < required;
+
+                      // If the time can be parsed, position it accurately.
+                      // Otherwise show it safely rather than crashing.
+                      let left = 1;
+                      let width = 98;
+
+                      if (shift.parsedTime) {
+                        left =
+                          ((shift.parsedTime.start -
+                            ragTimelineBounds.start) /
+                            ragTimelineBounds.duration) *
+                          100;
+
+                        width =
+                          (shift.parsedTime.duration /
+                            ragTimelineBounds.duration) *
+                          100;
+                      }
+
+                      const safeLeft =
+                        Math.max(0, Math.min(98, left));
+
+                      const safeWidth =
+                        Math.max(
+                          5,
+                          Math.min(
+                            100 - safeLeft,
+                            width
+                          )
+                        );
+
+                      return (
+                        <button
+                          key={shift.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedRagShift(shift)
+                          }
+                          className={`absolute rounded-xl border shadow-sm text-left px-2.5 py-2 transition-all hover:scale-[1.02] hover:z-20 overflow-hidden ${
+                            isFull
+                              ? darkMode
+                                ? 'bg-emerald-950 border-emerald-700 text-emerald-200'
+                                : 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                              : isPartial
+                                ? darkMode
+                                  ? 'bg-amber-950 border-amber-700 text-amber-200'
+                                  : 'bg-amber-100 border-amber-300 text-amber-900'
+                                : darkMode
+                                  ? 'bg-rose-950 border-rose-700 text-rose-200'
+                                  : 'bg-rose-100 border-rose-300 text-rose-900'
+                          }`}
+                          style={{
+                            left: `${safeLeft}%`,
+                            width: `${safeWidth}%`,
+                            top: `${10 + index * 74}px`,
+                            minHeight: '68px'
+                          }}
+                          title={`${shift.title} · ${shift.timeSlot}`}
+                        >
+                          <div className="text-[10px] font-black truncate">
+                            {shift.title}
+                          </div>
+
+                          <div className="text-[10px] font-bold mt-1 truncate">
+                            {shift.timeSlot}
+                          </div>
+
+                          <div className="flex items-center justify-between gap-1 mt-1">
+                            <span className="text-[10px] font-black">
+                              {assigned}/{required}
+                            </span>
+
+                            <span className="text-[9px] font-bold whitespace-nowrap">
+                              {isFull
+                                ? 'FULL'
+                                : `${gap} NEEDED`}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+
+            {/* Shifts whose time could not be understood */}
+            {ragDayShifts.some(
+              shift => !shift.parsedTime
+            ) && (
+              <div
+                className={`px-5 py-3 text-xs border-t ${
+                  darkMode
+                    ? 'bg-amber-950/20 border-slate-800 text-amber-300'
+                    : 'bg-amber-50 border-amber-200 text-amber-800'
+                }`}
+              >
+                <AlertCircle className="w-4 h-4 inline mr-1.5" />
+
+                One or more shifts have an unusual time format.
+                They are still shown, but edit the Master Rota time
+                to something like <strong>8.30pm to 10.30pm</strong>{' '}
+                for accurate timeline positioning.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+
+
+    {/* -------------------------------------------------- */}
+    {/* SELECTED SHIFT DETAIL PANEL */}
+    {/* -------------------------------------------------- */}
+    {selectedRagShift && (() => {
+
+      // Always find the latest version of the shift.
+      const liveShift =
+        shifts.find(
+          shift => shift.id === selectedRagShift.id
+        ) || selectedRagShift;
+
+      const assigned =
+        liveShift.assignedVolunteers?.length || 0;
+
+      const required =
+        Number(liveShift.requiredVolunteers) || 0;
+
+      const gap =
+        Math.max(0, required - assigned);
+
+      const lead =
+        submissions.find(
+          sub => sub.id === liveShift.leadVolunteerId
+        );
+
+      return (
+        <div
+          className={`rounded-3xl border shadow-lg overflow-hidden ${
+            darkMode
+              ? 'bg-slate-900 border-slate-700'
+              : 'bg-white border-amber-200'
+          }`}
+        >
+
+          {/* Detail header */}
+          <div
+            className={`p-5 border-b flex items-start justify-between gap-4 ${
+              darkMode
+                ? 'border-slate-800'
+                : 'border-slate-200'
+            }`}
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-500" />
+
+                <h3
+                  className={`font-black ${
+                    darkMode
+                      ? 'text-white'
+                      : 'text-slate-900'
+                  }`}
+                >
+                  {liveShift.title}
+                </h3>
+              </div>
+
+              <div
+                className={`text-xs mt-2 ${
+                  darkMode
+                    ? 'text-slate-400'
+                    : 'text-slate-500'
+                }`}
+              >
+                {
+                  DAYS.find(
+                    day => day.id === liveShift.day
+                  )?.label
+                }
+                {' · '}
+                {liveShift.timeSlot}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedRagShift(null)}
+              className={`p-2 rounded-xl ${
+                darkMode
+                  ? 'hover:bg-slate-800 text-slate-400'
+                  : 'hover:bg-slate-100 text-slate-500'
+              }`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+
+          <div className="p-5 space-y-5">
+
+            {/* Numbers */}
+            <div className="grid grid-cols-3 gap-3">
+
+              <div
+                className={`p-3 rounded-2xl ${
+                  darkMode
+                    ? 'bg-slate-800'
+                    : 'bg-slate-50'
+                }`}
+              >
+                <div
+                  className={`text-[10px] font-bold uppercase ${
+                    darkMode
+                      ? 'text-slate-400'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Required
+                </div>
+
+                <div
+                  className={`text-xl font-black ${
+                    darkMode
+                      ? 'text-white'
+                      : 'text-slate-900'
+                  }`}
+                >
+                  {required}
+                </div>
+              </div>
+
+
+              <div
+                className={`p-3 rounded-2xl ${
+                  darkMode
+                    ? 'bg-slate-800'
+                    : 'bg-slate-50'
+                }`}
+              >
+                <div
+                  className={`text-[10px] font-bold uppercase ${
+                    darkMode
+                      ? 'text-slate-400'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Allocated
+                </div>
+
+                <div className="text-xl font-black text-emerald-500">
+                  {assigned}
+                </div>
+              </div>
+
+
+              <div
+                className={`p-3 rounded-2xl ${
+                  gap > 0
+                    ? darkMode
+                      ? 'bg-rose-950/40'
+                      : 'bg-rose-50'
+                    : darkMode
+                      ? 'bg-emerald-950/40'
+                      : 'bg-emerald-50'
+                }`}
+              >
+                <div
+                  className={`text-[10px] font-bold uppercase ${
+                    gap > 0
+                      ? 'text-rose-500'
+                      : 'text-emerald-500'
+                  }`}
+                >
+                  Still Needed
+                </div>
+
+                <div
+                  className={`text-xl font-black ${
+                    gap > 0
+                      ? 'text-rose-500'
+                      : 'text-emerald-500'
+                  }`}
+                >
+                  {gap}
+                </div>
+              </div>
+            </div>
+
+
+            {/* Team lead */}
+            <div>
+              <div
+                className={`text-[10px] font-black uppercase tracking-wider mb-2 ${
+                  darkMode
+                    ? 'text-slate-400'
+                    : 'text-slate-500'
+                }`}
+              >
+                Team Lead
+              </div>
+
+              {lead ? (
+                <div className="flex items-center gap-2 text-sm font-bold text-amber-500">
+                  <Crown className="w-4 h-4" />
+                  {lead.fullName}
+                </div>
+              ) : (
+                <div
+                  className={`text-sm ${
+                    darkMode
+                      ? 'text-slate-500'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  No team lead assigned
+                </div>
+              )}
+            </div>
+
+
+            {/* Allocated sevaks */}
+            <div>
+              <div
+                className={`text-[10px] font-black uppercase tracking-wider mb-2 ${
+                  darkMode
+                    ? 'text-slate-400'
+                    : 'text-slate-500'
+                }`}
+              >
+                Allocated Sevaks
+              </div>
+
+              {liveShift.assignedVolunteers?.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+
+                  {liveShift.assignedVolunteers.map(
+                    volunteerId => {
+
+                      const volunteer =
+                        submissions.find(
+                          sub => sub.id === volunteerId
+                        );
+
+                      if (!volunteer) return null;
+
+                      return (
+                        <span
+                          key={volunteerId}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${
+                            darkMode
+                              ? 'bg-slate-800 border-slate-700 text-slate-200'
+                              : 'bg-slate-50 border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          {volunteer.fullName}
+
+                          {liveShift.leadVolunteerId ===
+                            volunteerId && (
+                            <Crown className="w-3 h-3 inline ml-1 text-amber-500" />
+                          )}
+                        </span>
+                      );
+                    }
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm font-bold text-rose-500">
+                  No sevaks allocated yet
+                </div>
+              )}
+            </div>
+
+
+            {/* Go to allocation */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('allocation')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-black shadow-md hover:shadow-lg transition-all"
+            >
+              <Users className="w-4 h-4" />
+              Go to Volunteer Allocation
+            </button>
+
+          </div>
+        </div>
+      );
+    })()}
+  </div>
+)}
 
       </main>
 
