@@ -2135,11 +2135,11 @@ const handleProcessExcelData = async (textInput) => {
               <button
                 onClick={handleSyncMicrosoftForm}
                 title="Sync Microsoft Form"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  isSyncing 
-                    ? 'bg-amber-500 text-white' 
-                    : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                }`}
+                className={
+                isSyncing
+                    ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-amber-500 text-white'
+                    : 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                }
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Sync Responses</span>
