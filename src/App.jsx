@@ -274,12 +274,28 @@ const shiftFromDb = (row) => ({
   day: row.day,
   title: row.title,
   timeSlot: row.time_slot,
-  requiredVolunteers: row.required_volunteers,
+
+  // Keep the original total capacity for backwards compatibility
+  requiredVolunteers: Number(row.required_volunteers) || 0,
+
+  // New Gents / Mahila capacity breakdown.
+  // null means this older shift has not been split yet.
+  requiredGents:
+    row.required_gents === null || row.required_gents === undefined
+      ? null
+      : Number(row.required_gents),
+
+  requiredMahila:
+    row.required_mahila === null || row.required_mahila === undefined
+      ? null
+      : Number(row.required_mahila),
+
   assignedVolunteers: row.assigned_volunteers || [],
   leadVolunteerId: row.lead_volunteer_id,
   location: row.location || '',
   isUrgent: row.is_urgent || false
 });
+  
 // Convert a submission from the app format into Supabase format
 const submissionToDb = (submission) => ({
   id: submission.id,
@@ -309,7 +325,28 @@ const shiftToDb = (shift) => ({
   day: shift.day,
   title: shift.title,
   time_slot: shift.timeSlot,
-  required_volunteers: Number(shift.requiredVolunteers) || 1,
+
+  required_volunteers:
+  shift.requiredGents === null ||
+  shift.requiredGents === undefined ||
+  shift.requiredMahila === null ||
+  shift.requiredMahila === undefined
+    ? Math.max(0, Number(shift.requiredVolunteers) || 0)
+    : Math.max(0, Number(shift.requiredGents) || 0) +
+      Math.max(0, Number(shift.requiredMahila) || 0),
+  
+  required_gents:
+    shift.requiredGents === null ||
+    shift.requiredGents === undefined
+      ? null
+      : Math.max(0, Number(shift.requiredGents) || 0),
+
+  required_mahila:
+    shift.requiredMahila === null ||
+    shift.requiredMahila === undefined
+      ? null
+      : Math.max(0, Number(shift.requiredMahila) || 0),
+
   assigned_volunteers: shift.assignedVolunteers || [],
   lead_volunteer_id: shift.leadVolunteerId || null,
   location: shift.location || '',
@@ -419,9 +456,9 @@ const loadData = async () => {
     day: DAYS[0].id,
     title: '',
     timeSlot: '9am to 1pm',
-    requiredVolunteers: 5
+    requiredGents: 0,
+    requiredMahila: 0
   });
-
   // Sync / Microsoft Excel import state
   const [excelPasteData, setExcelPasteData] = useState('');
   const [lastSynced, setLastSynced] = useState(new Date().toLocaleTimeString());
@@ -1274,7 +1311,11 @@ const loadData = async () => {
     day: newShift.day,
     title: newShift.title || `${newShift.department} - ${newShift.timeSlot}`,
     timeSlot: newShift.timeSlot,
-    requiredVolunteers: parseInt(newShift.requiredVolunteers) || 5,
+    requiredGents: Math.max(0, Number(newShift.requiredGents) || 0),
+    requiredMahila: Math.max(0, Number(newShift.requiredMahila) || 0),
+    requiredVolunteers:
+      Math.max(0, Number(newShift.requiredGents) || 0) +
+      Math.max(0, Number(newShift.requiredMahila) || 0),
     assignedVolunteers: [],
     leadVolunteerId: null,
     location: `${newShift.department} Zone`,
@@ -1302,7 +1343,9 @@ const loadData = async () => {
       day: DAYS[0].id,
       title: '',
       timeSlot: '9am to 1pm',
-      requiredVolunteers: 5
+      requiredGents: 0,
+      requiredMahila: 0
+    });
     });
 
   } catch (error) {
@@ -1446,6 +1489,108 @@ const loadData = async () => {
   }, [submissions, searchQuery, allocationFilter]);
   
   // ---------------------------------------------------------
+  // ---------------------------------------------------------
+  // GENTS / MAHILA HELPERS
+  // ---------------------------------------------------------
+  
+  const getSevakGroup = (sevak) => {
+    const mandal = String(sevak?.mandal || '').toLowerCase();
+  
+    // Check Mahila first because "sanyukta mahila" must not
+    // accidentally be treated as Sanyukta Gents.
+    if (
+      mandal.includes('kishori') ||
+      mandal.includes('yuvati') ||
+      mandal.includes('sanyukta mahila')
+    ) {
+      return 'mahila';
+    }
+  
+    if (
+      mandal.includes('kishore') ||
+      mandal.includes('yuvak') ||
+      (
+        mandal.includes('sanyukta mandal') &&
+        !mandal.includes('mahila')
+      )
+    ) {
+      return 'gents';
+    }
+  
+    return 'unknown';
+  };
+  
+  
+  const getShiftGenderStats = (shift) => {
+    const allocatedSevaks = (shift.assignedVolunteers || [])
+      .map(id => submissions.find(sub => sub.id === id))
+      .filter(Boolean);
+  
+    const assignedGents = allocatedSevaks.filter(
+      sevak => getSevakGroup(sevak) === 'gents'
+    ).length;
+  
+    const assignedMahila = allocatedSevaks.filter(
+      sevak => getSevakGroup(sevak) === 'mahila'
+    ).length;
+  
+    const assignedUnknown = allocatedSevaks.filter(
+      sevak => getSevakGroup(sevak) === 'unknown'
+    ).length;
+  
+    const hasGenderBreakdown =
+      shift.requiredGents !== null &&
+      shift.requiredGents !== undefined &&
+      shift.requiredMahila !== null &&
+      shift.requiredMahila !== undefined;
+  
+    const requiredGents = hasGenderBreakdown
+      ? Math.max(0, Number(shift.requiredGents) || 0)
+      : 0;
+  
+    const requiredMahila = hasGenderBreakdown
+      ? Math.max(0, Number(shift.requiredMahila) || 0)
+      : 0;
+  
+    const requiredTotal = hasGenderBreakdown
+      ? requiredGents + requiredMahila
+      : Math.max(0, Number(shift.requiredVolunteers) || 0);
+  
+    const assignedTotal = allocatedSevaks.length;
+  
+    const gentsGap = hasGenderBreakdown
+      ? Math.max(0, requiredGents - assignedGents)
+      : 0;
+  
+    const mahilaGap = hasGenderBreakdown
+      ? Math.max(0, requiredMahila - assignedMahila)
+      : 0;
+  
+    const totalGap = hasGenderBreakdown
+      ? gentsGap + mahilaGap
+      : Math.max(0, requiredTotal - assignedTotal);
+  
+    const isFull = hasGenderBreakdown
+      ? assignedGents >= requiredGents &&
+        assignedMahila >= requiredMahila
+      : requiredTotal > 0 &&
+        assignedTotal >= requiredTotal;
+  
+    return {
+      hasGenderBreakdown,
+      requiredGents,
+      requiredMahila,
+      requiredTotal,
+      assignedGents,
+      assignedMahila,
+      assignedUnknown,
+      assignedTotal,
+      gentsGap,
+      mahilaGap,
+      totalGap,
+      isFull
+    };
+  };
   // DYNAMIC RAG CALENDAR HELPERS
   // ---------------------------------------------------------
   // Convert a single written time such as:
@@ -1537,10 +1682,9 @@ const loadData = async () => {
         const matchesDepartment =
           ragDeptFilter === 'ALL' ||
           shift.department === ragDeptFilter;
-        const assigned = shift.assignedVolunteers?.length || 0;
-        const required = Number(shift.requiredVolunteers) || 0;
+        const genderStats = getShiftGenderStats(shift);
         const matchesGapFilter =
-          !ragGapsOnly || assigned < required;
+          !ragGapsOnly || !genderStats.isFull;
         
         return (
           matchesDay &&
@@ -2416,7 +2560,8 @@ const loadData = async () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMasterShifts.map(shift => {
-                const isFull = shift.assignedVolunteers.length >= shift.requiredVolunteers;
+                const genderStats = getShiftGenderStats(shift);
+                const isFull = genderStats.isFull;
                 const dayObj = DAYS.find(d => d.id === shift.day);
 
                 return (
@@ -2477,18 +2622,50 @@ const loadData = async () => {
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          Assigned ({shift.assignedVolunteers.length}/{shift.requiredVolunteers})
-                        </span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isFull 
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        }`}>
-                          {isFull ? 'Filled' : `${shift.requiredVolunteers - shift.assignedVolunteers.length} needed`}
-                        </span>
-                      </div>
+                      <div className="flex items-start justify-between gap-3 text-xs">
+  <div className="font-bold text-slate-700 dark:text-slate-300">
+    {genderStats.hasGenderBreakdown ? (
+      <div className="space-y-1">
+        <div>
+          Assigned ({genderStats.assignedTotal}/{genderStats.requiredTotal})
+        </div>
+
+        <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+          Gents: {genderStats.assignedGents}/{genderStats.requiredGents}
+          {' · '}
+          Mahila: {genderStats.assignedMahila}/{genderStats.requiredMahila}
+        </div>
+      </div>
+    ) : (
+      <div>
+        Assigned ({genderStats.assignedTotal}/{genderStats.requiredTotal})
+      </div>
+    )}
+  </div>
+
+  <span
+    className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+      isFull
+        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+    }`}
+  >
+    {isFull
+      ? 'Filled'
+      : genderStats.hasGenderBreakdown
+        ? [
+            genderStats.gentsGap > 0
+              ? `${genderStats.gentsGap} Gents needed`
+              : null,
+            genderStats.mahilaGap > 0
+              ? `${genderStats.mahilaGap} Mahila needed`
+              : null
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : `${genderStats.totalGap} needed`}
+  </span>
+</div>
 
                       <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                         {shift.assignedVolunteers.length === 0 ? (
@@ -3032,22 +3209,16 @@ const loadData = async () => {
                     {/* Real shift blocks */}
                     {departmentShifts.map((shift, index) => {
 
-                      const assigned =
-                        shift.assignedVolunteers?.length || 0;
+                      const genderStats = getShiftGenderStats(shift);
 
-                      const required =
-                        Number(shift.requiredVolunteers) || 0;
-
-                      const gap =
-                        Math.max(0, required - assigned);
-
-                      const isFull =
-                        required > 0 &&
-                        assigned >= required;
-
+                      const assigned = genderStats.assignedTotal;
+                      const required = genderStats.requiredTotal;
+                      const gap = genderStats.totalGap;
+                      
+                      const isFull = genderStats.isFull;
+                      
                       const isPartial =
-                        assigned > 0 &&
-                        assigned < required;
+                        assigned > 0 && !isFull;
 
                       // If the time can be parsed, position it accurately.
                       // Otherwise show it safely rather than crashing.
@@ -3117,13 +3288,34 @@ const loadData = async () => {
 
                           <div className="flex items-center justify-between gap-1 mt-1">
                             <span className="text-[10px] font-black">
-                              {assigned}/{required}
-                            </span>
+                              {genderStats.hasGenderBreakdown ? (
+                          <>
+                            G {genderStats.assignedGents}/{genderStats.requiredGents}
+                            {' · '}
+                            M {genderStats.assignedMahila}/{genderStats.requiredMahila}
+                          </>
+                        ) : (
+                          <>
+                            {assigned}/{required}
+                          </>
+                        )}
+                      </span>
 
                             <span className="text-[9px] font-bold whitespace-nowrap">
                               {isFull
-                                ? 'FULL'
-                                : `${gap} NEEDED`}
+  ? 'FULL'
+  : genderStats.hasGenderBreakdown
+    ? [
+        genderStats.gentsGap > 0
+          ? `${genderStats.gentsGap}G`
+          : null,
+        genderStats.mahilaGap > 0
+          ? `${genderStats.mahilaGap}M`
+          : null
+      ]
+        .filter(Boolean)
+        .join(' + ')
+    : `${gap} NEEDED`}
                             </span>
                           </div>
                         </button>
@@ -3171,14 +3363,11 @@ const loadData = async () => {
           shift => shift.id === selectedRagShift.id
         ) || selectedRagShift;
 
-      const assigned =
-        liveShift.assignedVolunteers?.length || 0;
+      const genderStats = getShiftGenderStats(liveShift);
 
-      const required =
-        Number(liveShift.requiredVolunteers) || 0;
-
-      const gap =
-        Math.max(0, required - assigned);
+      const assigned = genderStats.assignedTotal;
+      const required = genderStats.requiredTotal;
+      const gap = genderStats.totalGap;
 
       const lead =
         submissions.find(
@@ -3337,6 +3526,77 @@ const loadData = async () => {
                 </div>
               </div>
             </div>
+
+            {genderStats.hasGenderBreakdown && (
+  <div className="grid grid-cols-2 gap-3">
+
+    <div
+      className={`p-4 rounded-2xl border ${
+        genderStats.gentsGap > 0
+          ? darkMode
+            ? 'bg-rose-950/30 border-rose-900'
+            : 'bg-rose-50 border-rose-200'
+          : darkMode
+            ? 'bg-emerald-950/30 border-emerald-900'
+            : 'bg-emerald-50 border-emerald-200'
+      }`}
+    >
+      <div className="text-[10px] font-black uppercase text-slate-400">
+        Gents
+      </div>
+
+      <div
+        className={`text-xl font-black ${
+          genderStats.gentsGap > 0
+            ? 'text-rose-500'
+            : 'text-emerald-500'
+        }`}
+      >
+        {genderStats.assignedGents}/{genderStats.requiredGents}
+      </div>
+
+      <div className="text-[10px] mt-1 text-slate-400">
+        {genderStats.gentsGap > 0
+          ? `${genderStats.gentsGap} still needed`
+          : 'Covered'}
+      </div>
+    </div>
+
+
+    <div
+      className={`p-4 rounded-2xl border ${
+        genderStats.mahilaGap > 0
+          ? darkMode
+            ? 'bg-rose-950/30 border-rose-900'
+            : 'bg-rose-50 border-rose-200'
+          : darkMode
+            ? 'bg-emerald-950/30 border-emerald-900'
+            : 'bg-emerald-50 border-emerald-200'
+      }`}
+    >
+      <div className="text-[10px] font-black uppercase text-slate-400">
+        Mahila
+      </div>
+
+      <div
+        className={`text-xl font-black ${
+          genderStats.mahilaGap > 0
+            ? 'text-rose-500'
+            : 'text-emerald-500'
+        }`}
+      >
+        {genderStats.assignedMahila}/{genderStats.requiredMahila}
+      </div>
+
+      <div className="text-[10px] mt-1 text-slate-400">
+        {genderStats.mahilaGap > 0
+          ? `${genderStats.mahilaGap} still needed`
+          : 'Covered'}
+      </div>
+    </div>
+
+  </div>
+)}
 
 
             {/* Team lead */}
@@ -3672,16 +3932,64 @@ const loadData = async () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-500 mb-1">Required Capacity</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={newShift.requiredVolunteers}
-                  onChange={e => setNewShift({ ...newShift, requiredVolunteers: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-transparent"
-                />
-              </div>
+  <label className="block font-bold text-slate-500 mb-2">
+    Required Capacity
+  </label>
+
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <label className="block text-[10px] font-bold text-slate-400 mb-1">
+        Gents Required
+      </label>
+
+      <input
+        type="number"
+        min="0"
+        max="50"
+        value={newShift.requiredGents}
+        onChange={e =>
+          setNewShift({
+            ...newShift,
+            requiredGents: e.target.value
+          })
+        }
+        className="w-full px-3 py-2 rounded-xl border bg-transparent"
+      />
+    </div>
+
+    <div>
+      <label className="block text-[10px] font-bold text-slate-400 mb-1">
+        Mahila Required
+      </label>
+
+      <input
+        type="number"
+        min="0"
+        max="50"
+        value={newShift.requiredMahila}
+        onChange={e =>
+          setNewShift({
+            ...newShift,
+            requiredMahila: e.target.value
+          })
+        }
+        className="w-full px-3 py-2 rounded-xl border bg-transparent"
+      />
+    </div>
+  </div>
+
+  <div
+    className={`mt-2 px-3 py-2 rounded-xl text-xs font-bold ${
+      darkMode
+        ? 'bg-slate-800 text-slate-300'
+        : 'bg-amber-50 text-slate-700'
+    }`}
+  >
+    Total Required:{' '}
+    {Math.max(0, Number(newShift.requiredGents) || 0) +
+      Math.max(0, Number(newShift.requiredMahila) || 0)}
+  </div>
+</div>
 
               <div className="flex justify-end gap-2 pt-3">
                 <button
@@ -3736,16 +4044,91 @@ const loadData = async () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Required Volunteers</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={editingShift.requiredVolunteers}
-                  onChange={e => setEditingShift({ ...editingShift, requiredVolunteers: parseInt(e.target.value) || 1 })}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-medium border bg-transparent"
-                />
-              </div>
+  <label className="block text-xs font-bold text-slate-500 mb-2">
+    Required Capacity Breakdown
+  </label>
+
+  {(
+    editingShift.requiredGents === null ||
+    editingShift.requiredGents === undefined ||
+    editingShift.requiredMahila === null ||
+    editingShift.requiredMahila === undefined
+  ) && (
+    <div
+      className={`mb-3 p-3 rounded-xl text-[11px] ${
+        darkMode
+          ? 'bg-amber-950/30 text-amber-300'
+          : 'bg-amber-50 text-amber-700'
+      }`}
+    >
+      This shift currently has an old total capacity of{' '}
+      <strong>{editingShift.requiredVolunteers}</strong>.
+      Enter the Gents and Mahila breakdown below.
+    </div>
+  )}
+
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <label className="block text-[10px] font-bold text-slate-400 mb-1">
+        Gents Required
+      </label>
+
+      <input
+        type="number"
+        min="0"
+        max="50"
+        value={editingShift.requiredGents ?? ''}
+        placeholder="0"
+        onChange={e =>
+          setEditingShift({
+            ...editingShift,
+            requiredGents:
+              e.target.value === ''
+                ? ''
+                : Number(e.target.value)
+          })
+        }
+        className="w-full px-3 py-2 rounded-xl text-xs font-medium border bg-transparent"
+      />
+    </div>
+
+    <div>
+      <label className="block text-[10px] font-bold text-slate-400 mb-1">
+        Mahila Required
+      </label>
+
+      <input
+        type="number"
+        min="0"
+        max="50"
+        value={editingShift.requiredMahila ?? ''}
+        placeholder="0"
+        onChange={e =>
+          setEditingShift({
+            ...editingShift,
+            requiredMahila:
+              e.target.value === ''
+                ? ''
+                : Number(e.target.value)
+          })
+        }
+        className="w-full px-3 py-2 rounded-xl text-xs font-medium border bg-transparent"
+      />
+    </div>
+  </div>
+
+  <div
+    className={`mt-2 px-3 py-2 rounded-xl text-xs font-bold ${
+      darkMode
+        ? 'bg-slate-800 text-slate-300'
+        : 'bg-amber-50 text-slate-700'
+    }`}
+  >
+    New Total Required:{' '}
+    {(Number(editingShift.requiredGents) || 0) +
+      (Number(editingShift.requiredMahila) || 0)}
+  </div>
+</div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
