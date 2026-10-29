@@ -2115,7 +2115,7 @@ const handleProcessExcelData = async (textInput) => {
       className={
       darkMode
       ? 'border-b sticky top-0 z-30 backdrop-blur-md shadow-lg bg-[#190D25]/95 border-[#D4A017]/30'
-      : 'border-b sticky top-0 z-30 backdrop-blur-md shadow-lg bg-gradient-to-r from-[#5B1678] via-[#9C1C69] to-[#C2185B] border-[#F6C344]'
+      : 'border-b sticky top-0 z-30 backdrop-blur-md shadow-lg bg-gradient-to-r from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] border-[#D4A017]'
       }
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
