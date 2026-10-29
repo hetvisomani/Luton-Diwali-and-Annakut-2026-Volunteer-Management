@@ -2260,9 +2260,37 @@ const handleProcessExcelData = async (textInput) => {
         <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-teal-300 rounded-full filter blur-3xl"></div>
       </div>
 
-      <div className="fixed top-6 left-6 pointer-events-none z-0 text-[#7c163d]/15 dark:text-amber-300/10 hidden lg:block">
-        <RangoliArt className="w-48 h-48 text-[#D4A017] opacity-20" />
-      </div>
+      {/* Traditional Gold Rangoli Background */}
+<div className="fixed inset-0 pointer-events-none z-0 overflow-hidden hidden lg:block">
+
+  {/* Large cropped rangoli - top left */}
+  <RangoliArt className="absolute -top-20 -left-20 w-72 h-72 text-[#8A5A00] opacity-[0.18]" />
+
+  {/* Smaller rangoli - upper centre-right */}
+  <RangoliArt className="absolute top-16 right-[12%] w-40 h-40 text-[#9A6A08] opacity-[0.16]" />
+
+  {/* Large cropped rangoli - upper right */}
+  <RangoliArt className="absolute top-[20%] -right-24 w-80 h-80 text-[#8A5A00] opacity-[0.17]" />
+
+  {/* Medium rangoli - left */}
+  <RangoliArt className="absolute top-[35%] left-8 w-44 h-44 text-[#9A6A08] opacity-[0.15]" />
+
+  {/* Small rangoli - centre-right */}
+  <RangoliArt className="absolute top-[48%] right-[18%] w-32 h-32 text-[#7A5200] opacity-[0.14]" />
+
+  {/* Large cropped rangoli - lower left */}
+  <RangoliArt className="absolute top-[58%] -left-24 w-80 h-80 text-[#8A5A00] opacity-[0.17]" />
+
+  {/* Medium rangoli - lower right */}
+  <RangoliArt className="absolute top-[70%] right-10 w-52 h-52 text-[#9A6A08] opacity-[0.16]" />
+
+  {/* Small rangoli - lower centre */}
+  <RangoliArt className="absolute bottom-[8%] left-[35%] w-36 h-36 text-[#7A5200] opacity-[0.13]" />
+
+  {/* Large cropped rangoli - bottom right */}
+  <RangoliArt className="absolute -bottom-24 -right-20 w-80 h-80 text-[#8A5A00] opacity-[0.18]" />
+
+</div>
 
       {/* Header */}
       <header
