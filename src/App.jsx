@@ -214,17 +214,104 @@ const initialSubmissions = [
   }
 ];
 
-const RangoliArt = ({ className = "w-16 h-16 opacity-15" }) => (
-  <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-    <circle cx="50" cy="50" r="45" strokeDasharray="4 2" />
-    <circle cx="50" cy="50" r="35" />
-    <circle cx="50" cy="50" r="20" />
-    <path d="M50 5 L50 95 M5 50 L95 50" />
-    <path d="M18 18 L82 82 M18 82 L82 18" />
-    <path d="M50 20 Q65 35 50 50 Q35 35 50 20 Z" fill="currentColor" fillOpacity="0.2" />
-    <path d="M50 80 Q65 65 50 50 Q35 65 50 80 Z" fill="currentColor" fillOpacity="0.2" />
-    <path d="M20 50 Q35 65 50 50 Q35 35 20 50 Z" fill="currentColor" fillOpacity="0.2" />
-    <path d="M80 50 Q65 65 50 50 Q65 35 80 50 Z" fill="currentColor" fillOpacity="0.2" />
+const RangoliArt = ({ className = "w-32 h-32 opacity-20" }) => (
+  <svg
+    viewBox="0 0 200 200"
+    className={className}
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <g
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Outer decorative petals */}
+      {Array.from({ length: 16 }).map((_, i) => (
+        <g key={`outer-${i}`} transform={`rotate(${i * 22.5} 100 100)`}>
+          <path d="M100 15 C88 28 87 42 100 52 C113 42 112 28 100 15Z" />
+          <circle cx="100" cy="31" r="3" />
+          <path d="M100 18 L100 48" strokeWidth="1.2" />
+        </g>
+      ))}
+
+      {/* Second petal layer */}
+      {Array.from({ length: 16 }).map((_, i) => (
+        <g
+          key={`middle-${i}`}
+          transform={`rotate(${i * 22.5 + 11.25} 100 100)`}
+        >
+          <path d="M100 48 C92 57 92 67 100 75 C108 67 108 57 100 48Z" />
+          <circle cx="100" cy="60" r="2" />
+        </g>
+      ))}
+
+      {/* Decorative rings */}
+      <circle cx="100" cy="100" r="83" />
+      <circle cx="100" cy="100" r="72" />
+      <circle cx="100" cy="100" r="54" />
+      <circle cx="100" cy="100" r="38" />
+
+      {/* Dotted-style ring */}
+      {Array.from({ length: 24 }).map((_, i) => {
+        const angle = (i * 15 * Math.PI) / 180;
+        const x = 100 + 63 * Math.cos(angle);
+        const y = 100 + 63 * Math.sin(angle);
+
+        return (
+          <circle
+            key={`dot-${i}`}
+            cx={x}
+            cy={y}
+            r="2.5"
+            fill="currentColor"
+            stroke="none"
+          />
+        );
+      })}
+
+      {/* Inner flower */}
+      {Array.from({ length: 8 }).map((_, i) => (
+        <g key={`inner-${i}`} transform={`rotate(${i * 45} 100 100)`}>
+          <path
+            d="M100 65 C89 76 89 91 100 100 C111 91 111 76 100 65Z"
+            fill="currentColor"
+            fillOpacity="0.08"
+          />
+          <path d="M100 69 C95 79 95 89 100 96" strokeWidth="1.2" />
+        </g>
+      ))}
+
+      {/* Centre */}
+      <circle
+        cx="100"
+        cy="100"
+        r="14"
+        fill="currentColor"
+        fillOpacity="0.12"
+      />
+      <circle cx="100" cy="100" r="8" />
+      <circle cx="100" cy="100" r="3" fill="currentColor" />
+
+      {/* Tiny outer dots */}
+      {Array.from({ length: 32 }).map((_, i) => {
+        const angle = (i * 11.25 * Math.PI) / 180;
+        const x = 100 + 91 * Math.cos(angle);
+        const y = 100 + 91 * Math.sin(angle);
+
+        return (
+          <circle
+            key={`outerdot-${i}`}
+            cx={x}
+            cy={y}
+            r="1.7"
+            fill="currentColor"
+            stroke="none"
+          />
+        );
+      })}
+    </g>
   </svg>
 );
 
