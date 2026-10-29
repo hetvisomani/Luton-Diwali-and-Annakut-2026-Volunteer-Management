@@ -2252,7 +2252,7 @@ const handleProcessExcelData = async (textInput) => {
           } shadow-2xl space-y-6 text-center`}
         >
           <div className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#65163b] to-[#9c3158] text-[#f8d98b] flex items-center justify-center mx-auto shadow-lg shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/40">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] text-[#F4D06F] flex items-center justify-center mx-auto shadow-lg shadow-[#4A0E16]/25 ring-1 ring-[#D4A017]/50">
               <KeyRound className="w-6 h-6" />
             </div>
 
@@ -2292,7 +2292,7 @@ const handleProcessExcelData = async (textInput) => {
 
             <button
               type="submit"
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#65163b]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 ring-1 ring-[#d6b36a]/30"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#65163b]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 ring-1 ring-[#d6b36a]/30"
             >
               View My Rota Schedule
             </button>
@@ -2328,7 +2328,7 @@ const handleProcessExcelData = async (textInput) => {
                           >
                           Jay Swaminarayan,
                         </h2>
-                        <span className="block text-xl sm:text-2xl font-black text-[#8f234d] dark:text-[#f0c96b]">
+                        <span className="block text-xl sm:text-2xl font-black text-[#6E1423] dark:text-[#f0c96b]">
                           {loggedInSevak.fullName}
                         </span>
                       </div>
