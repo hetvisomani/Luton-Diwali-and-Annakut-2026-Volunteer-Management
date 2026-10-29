@@ -2169,7 +2169,7 @@ const handleProcessExcelData = async (textInput) => {
               className={
                 activeTab === 'portal'
                   ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                  : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
               }
             >
               <User className="w-4 h-4" /> Sevak Rota Schedule
@@ -2182,7 +2182,7 @@ const handleProcessExcelData = async (textInput) => {
                   className={
                     activeTab === 'form'
                       ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
                   }
                 >
                   <FileSpreadsheet className="w-4 h-4" /> Excel Data Connector
@@ -2193,7 +2193,7 @@ const handleProcessExcelData = async (textInput) => {
   className={
     activeTab === 'allocation'
       ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
   <Users className="w-4 h-4" /> Volunteer Allocation
@@ -2204,7 +2204,7 @@ const handleProcessExcelData = async (textInput) => {
   className={
     activeTab === 'masterRota'
       ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
   <Calendar className="w-4 h-4" /> Master Rota
@@ -2215,7 +2215,7 @@ const handleProcessExcelData = async (textInput) => {
   className={
     activeTab === 'ragGaps'
       ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
   <BarChart3 className="w-4 h-4" /> RAG & Calendar Matrix
