@@ -228,6 +228,73 @@ const RangoliArt = ({ className = "w-16 h-16 opacity-15" }) => (
   </svg>
 );
 
+const DiyaArt = ({ className = "w-10 h-10" }) => (
+  <svg
+    viewBox="0 0 100 100"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <radialGradient id="diyaGlow" cx="50%" cy="45%" r="50%">
+        <stop offset="0%" stopColor="#FFF4B0" stopOpacity="0.9" />
+        <stop offset="55%" stopColor="#F4C95D" stopOpacity="0.35" />
+        <stop offset="100%" stopColor="#D4A017" stopOpacity="0" />
+      </radialGradient>
+
+      <linearGradient id="diyaGold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FFF0A6" />
+        <stop offset="45%" stopColor="#D4A017" />
+        <stop offset="100%" stopColor="#8A5A00" />
+      </linearGradient>
+
+      <linearGradient id="flameGold" x1="50%" y1="0%" x2="50%" y2="100%">
+        <stop offset="0%" stopColor="#FFF8C6" />
+        <stop offset="45%" stopColor="#FFD54F" />
+        <stop offset="100%" stopColor="#E58A00" />
+      </linearGradient>
+    </defs>
+
+    {/* soft glow */}
+    <circle cx="50" cy="48" r="42" fill="url(#diyaGlow)" />
+
+    {/* flame */}
+    <path
+      d="M50 12 C61 25 62 36 50 46 C38 36 39 25 50 12Z"
+      fill="url(#flameGold)"
+    />
+
+    {/* wick */}
+    <path
+      d="M50 43 C49 49 49 52 50 57"
+      stroke="#6E1423"
+      strokeWidth="3"
+      strokeLinecap="round"
+    />
+
+    {/* diya bowl */}
+    <path
+      d="M20 55 Q50 66 80 55 Q76 79 50 84 Q24 79 20 55Z"
+      fill="url(#diyaGold)"
+      stroke="#F4D06F"
+      strokeWidth="2"
+    />
+
+    {/* decorative rim */}
+    <path
+      d="M20 55 Q50 66 80 55"
+      fill="none"
+      stroke="#FFF0A6"
+      strokeWidth="3"
+      strokeLinecap="round"
+    />
+
+    {/* small traditional detailing */}
+    <circle cx="50" cy="72" r="3" fill="#FFF0A6" />
+    <circle cx="39" cy="69" r="2" fill="#FFF0A6" />
+    <circle cx="61" cy="69" r="2" fill="#FFF0A6" />
+  </svg>
+);
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('portal');
   const [darkMode, setDarkMode] = useState(false);
