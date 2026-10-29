@@ -2116,13 +2116,14 @@ const handleProcessExcelData = async (textInput) => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-[#5b1235] via-[#7c163d] to-[#a43b5b] rounded-2xl text-[#f8d98b] shadow-lg shadow-[#7c163d]/20 relative ring-1 ring-[#d6b36a]/40"
-              <Flame className="w-6 h-6 animate-bounce" />
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-base lg:text-xl font-black bg-gradient-to-r from-[#65163b] via-[#8f234d] to-[#b27a28] bg-clip-text text-transparent"
-                BAPS Luton Diwali & Annakut 2026
-              </h1>
+  <div className="p-2.5 bg-gradient-to-br from-[#5b1235] via-[#7c163d] to-[#a43b5b] rounded-2xl text-[#f8d98b] shadow-lg shadow-[#7c163d]/20 relative ring-1 ring-[#d6b36a]/40">
+    <Flame className="w-6 h-6 animate-bounce" />
+  </div>
+
+  <div>
+    <h1 className="text-sm sm:text-base lg:text-xl font-black bg-gradient-to-r from-[#65163b] via-[#8f234d] to-[#b27a28] bg-clip-text text-transparent">
+      BAPS Luton Diwali & Annakut 2026
+    </h1>
               <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
                 Sevak Management Portal
               </p>
