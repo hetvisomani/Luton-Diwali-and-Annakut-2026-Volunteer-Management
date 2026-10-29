@@ -2092,9 +2092,13 @@ const handleProcessExcelData = async (textInput) => {
   ]);
   
   return (
-    <div className={`min-h-screen ${darkMode
-  ? 'bg-[#120b18] text-slate-100'
-  : 'bg-gradient-to-b from-[#fffaf0] via-[#fff7ed] to-[#fdf2e9] text-slate-800'}>
+  <div
+    className={
+      darkMode
+        ? 'min-h-screen bg-[#120b18] text-slate-100 transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden'
+        : 'min-h-screen bg-gradient-to-b from-[#fffaf0] via-[#fff7ed] to-[#fdf2e9] text-slate-800 transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden'
+    }
+  >
       {/* Background Decorative Rings */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-20 dark:opacity-15">
         <div className="absolute top-0 -left-20 w-96 h-96 bg-fuchsia-400 rounded-full filter blur-3xl"></div>
@@ -2248,7 +2252,7 @@ const handleProcessExcelData = async (textInput) => {
           } shadow-2xl space-y-6 text-center`}
         >
           <div className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#65163b] to-[#9c3158] text-[#f8d98b] flex items-center justify-center mx-auto shadow-lg shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/40"
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#65163b] to-[#9c3158] text-[#f8d98b] flex items-center justify-center mx-auto shadow-lg shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/40">
               <KeyRound className="w-6 h-6" />
             </div>
 
