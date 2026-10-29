@@ -2168,7 +2168,7 @@ const handleProcessExcelData = async (textInput) => {
               onClick={() => setActiveTab('portal')}
               className={
                 activeTab === 'portal'
-                  ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+                  ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
                   : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
               }
             >
@@ -2181,7 +2181,7 @@ const handleProcessExcelData = async (textInput) => {
                   onClick={() => setActiveTab('form')}
                   className={
                     activeTab === 'form'
-                      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+                      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
                       : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
                   }
                 >
@@ -2192,7 +2192,7 @@ const handleProcessExcelData = async (textInput) => {
   onClick={() => setActiveTab('allocation')}
   className={
     activeTab === 'allocation'
-      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
       : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
@@ -2203,7 +2203,7 @@ const handleProcessExcelData = async (textInput) => {
   onClick={() => setActiveTab('masterRota')}
   className={
     activeTab === 'masterRota'
-      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
       : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
@@ -2214,7 +2214,7 @@ const handleProcessExcelData = async (textInput) => {
   onClick={() => setActiveTab('ragGaps')}
   className={
     activeTab === 'ragGaps'
-      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
       : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
