@@ -2502,11 +2502,32 @@ const loadData = async () => {
                           }`}
                         >
                           <option value="">-- Select Shift --</option>
-                          {dayShifts.map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.department} ({s.timeSlot})
-                            </option>
-                          ))}
+                          {dayShifts.map(s => {
+  const genderStats = getShiftGenderStats(s);
+  const sevakGroup = getSevakGroup(sub);
+
+  let capacityText;
+
+  if (genderStats.hasGenderBreakdown && sevakGroup === 'gents') {
+    capacityText =
+      `Gents ${genderStats.assignedGents}/${genderStats.requiredGents}`;
+  } else if (
+    genderStats.hasGenderBreakdown &&
+    sevakGroup === 'mahila'
+  ) {
+    capacityText =
+      `Mahila ${genderStats.assignedMahila}/${genderStats.requiredMahila}`;
+  } else {
+    capacityText =
+      `${genderStats.assignedTotal}/${genderStats.requiredTotal}`;
+  }
+
+  return (
+    <option key={s.id} value={s.id}>
+      {s.department} ({s.timeSlot}) — {capacityText}
+    </option>
+  );
+})}
                         </select>
                       </div>
                     </div>
