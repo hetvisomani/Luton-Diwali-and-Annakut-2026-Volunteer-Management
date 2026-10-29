@@ -2121,7 +2121,9 @@ const handleProcessExcelData = async (textInput) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
   <div className="p-2.5 bg-gradient-to-br from-[#5b1235] via-[#7c163d] to-[#a43b5b] rounded-2xl text-[#f8d98b] shadow-lg shadow-[#7c163d]/20 relative ring-1 ring-[#d6b36a]/40">
-    <Flame className="w-6 h-6 animate-bounce" />
+    <span className="text-2xl leading-none drop-shadow-[0_0_8px_rgba(255,193,7,0.9)]">
+      🪔
+    </span>
   </div>
 
   <div>
