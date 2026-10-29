@@ -2125,10 +2125,10 @@ const handleProcessExcelData = async (textInput) => {
   </div>
 
   <div>
-    <h1 className="text-sm sm:text-base lg:text-xl font-black bg-gradient-to-r from-[#65163b] via-[#8f234d] to-[#b27a28] bg-clip-text text-transparent">
+    <h1 className="text-sm sm:text-base lg:text-xl font-black bg-gradient-to-r from-[#F6D365] via-[#D4A017] to-[#A87508] bg-clip-text text-transparent">
       BAPS Luton Diwali & Annakut 2026
     </h1>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <p className="text-[10px] sm:text-xs text-white font-medium">
                 Sevak Management Portal
               </p>
             </div>
