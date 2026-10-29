@@ -2261,7 +2261,7 @@ const handleProcessExcelData = async (textInput) => {
       </div>
 
       <div className="fixed top-6 left-6 pointer-events-none z-0 text-[#7c163d]/15 dark:text-amber-300/10 hidden lg:block">
-        <RangoliArt className="w-48 h-48 animate-spin-slow" />
+        <RangoliArt className="w-48 h-48 text-[#D4A017] opacity-20" />
       </div>
 
       {/* Header */}
