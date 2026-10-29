@@ -2162,11 +2162,11 @@ const handleProcessExcelData = async (textInput) => {
           <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
             <button
               onClick={() => setActiveTab('portal')}
-              className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+              className={
                 activeTab === 'portal'
-                  ? 'bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
+                  ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+                  : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }
             >
               <User className="w-4 h-4" /> Sevak Rota Schedule
             </button>
@@ -2175,47 +2175,47 @@ const handleProcessExcelData = async (textInput) => {
               <>
                 <button
                   onClick={() => setActiveTab('form')}
-                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                  className={
                     activeTab === 'form'
-                      ? 'bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
+                      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+                      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }
                 >
                   <FileSpreadsheet className="w-4 h-4" /> Excel Data Connector
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('allocation')}
-                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                    activeTab === 'allocation'
-                      ? 'bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <Users className="w-4 h-4" /> Volunteer Allocation
-                </button>
+  onClick={() => setActiveTab('allocation')}
+  className={
+    activeTab === 'allocation'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+  }
+>
+  <Users className="w-4 h-4" /> Volunteer Allocation
+</button>
 
-                <button
-                  onClick={() => setActiveTab('masterRota')}
-                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                    activeTab === 'masterRota'
-                      ? 'bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" /> Master Rota
-                </button>
+<button
+  onClick={() => setActiveTab('masterRota')}
+  className={
+    activeTab === 'masterRota'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+  }
+>
+  <Calendar className="w-4 h-4" /> Master Rota
+</button>
 
-                <button
-                  onClick={() => setActiveTab('ragGaps')}
-                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                    activeTab === 'ragGaps'
-                      ? 'bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" /> RAG & Calendar Matrix
-                </button>
+<button
+  onClick={() => setActiveTab('ragGaps')}
+  className={
+    activeTab === 'ragGaps'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+  }
+>
+  <BarChart3 className="w-4 h-4" /> RAG & Calendar Matrix
+</button>
               </>
             )}
           </nav>
