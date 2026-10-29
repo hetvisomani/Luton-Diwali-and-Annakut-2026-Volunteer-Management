@@ -466,234 +466,485 @@ const loadData = async () => {
   const [importStatusMsg, setImportStatusMsg] = useState({ text: '', type: '' });
   const [excelFile, setExcelFile] = useState(null);
 
-  // Parse Excel tabular TSV/CSV or JSON responses from MS Forms Excel Export
-  const handleProcessExcelData = async (textInput) => {
+  // Parse Microsoft Forms CSV / Excel-pasted data / JSON
+const handleProcessExcelData = async (textInput) => {
   try {
     const raw = textInput || excelPasteData;
 
-    if (!raw.trim()) {
+    if (!raw || !raw.trim()) {
       setImportStatusMsg({
-        text: 'Please paste Excel response rows or upload a file.',
+        text: 'Please paste Excel response rows or upload a CSV file.',
         type: 'error'
       });
       return;
     }
 
+    // ---------------------------------------------------------
+    // HELPER: normalise Microsoft Forms headings
+    // ---------------------------------------------------------
+    const normaliseHeader = (value) =>
+      String(value || '')
+        .replace(/\u00A0/g, ' ')
+        .replace(/&#xA0;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+
+    // ---------------------------------------------------------
+    // HELPER: proper CSV parser
+    // Handles commas inside quoted cells correctly
+    // ---------------------------------------------------------
+    const parseCSV = (text) => {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let insideQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (insideQuotes && nextChar === '"') {
+            cell += '"';
+            i++;
+          } else {
+            insideQuotes = !insideQuotes;
+          }
+        } else if (char === ',' && !insideQuotes) {
+          row.push(cell);
+          cell = '';
+        } else if (
+          (char === '\n' || char === '\r') &&
+          !insideQuotes
+        ) {
+          if (char === '\r' && nextChar === '\n') {
+            i++;
+          }
+
+          row.push(cell);
+
+          if (row.some(value => String(value).trim() !== '')) {
+            rows.push(row);
+          }
+
+          row = [];
+          cell = '';
+        } else {
+          cell += char;
+        }
+      }
+
+      row.push(cell);
+
+      if (row.some(value => String(value).trim() !== '')) {
+        rows.push(row);
+      }
+
+      return rows;
+    };
+
+    // ---------------------------------------------------------
+    // HELPER: parse pasted Excel TSV
+    // ---------------------------------------------------------
+    const parseTSV = (text) =>
+      text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter(line => line.trim() !== '')
+        .map(line => line.split('\t'));
+
+    // ---------------------------------------------------------
+    // HELPER:
+    // Find first NON-BLANK answer whose heading starts with text.
+    //
+    // This is what handles Forms branching:
+    // Diwali...2026
+    // Diwali...20261
+    // Diwali...20262
+    // etc.
+    // ---------------------------------------------------------
+    const findAnsweredStartingWith = (item, headingStart) => {
+      const target = normaliseHeader(headingStart);
+
+      const key = Object.keys(item).find(key => {
+        const normalisedKey = normaliseHeader(key);
+        const value = String(item[key] ?? '').trim();
+
+        return (
+          normalisedKey.startsWith(target) &&
+          value !== ''
+        );
+      });
+
+      return key ? String(item[key] ?? '').trim() : '';
+    };
+
+    // Exact-heading helper
+    const findExact = (item, possibleHeadings) => {
+      for (const heading of possibleHeadings) {
+        const target = normaliseHeader(heading);
+
+        const key = Object.keys(item).find(
+          key => normaliseHeader(key) === target
+        );
+
+        if (
+          key &&
+          String(item[key] ?? '').trim() !== ''
+        ) {
+          return String(item[key]).trim();
+        }
+      }
+
+      return '';
+    };
+
+    // ---------------------------------------------------------
+    // HELPER: split Forms multi-select answers
+    // ---------------------------------------------------------
+    const splitAnswers = (value) => {
+      if (!value) return [];
+
+      return String(value)
+        .replace(/\u00A0/g, ' ')
+        .split(';')
+        .map(value => value.trim())
+        .filter(Boolean);
+    };
+
+    // ---------------------------------------------------------
+    // READ FILE
+    // ---------------------------------------------------------
     let parsedRows = [];
 
-    if (raw.trim().startsWith('[') || raw.trim().startsWith('{')) {
+    if (
+      raw.trim().startsWith('[') ||
+      raw.trim().startsWith('{')
+    ) {
       const json = JSON.parse(raw);
       parsedRows = Array.isArray(json) ? json : [json];
     } else {
-      const lines = raw
-        .trim()
-        .split('\n')
-        .map(l => l.split(/\t|,/));
+      // Excel copy/paste normally contains tabs.
+      // Uploaded CSV normally contains commas.
+      const rows = raw.includes('\t')
+        ? parseTSV(raw)
+        : parseCSV(raw);
 
-      if (lines.length > 0) {
-        const headers = lines[0].map(h =>
-          h.trim().toLowerCase()
-        );
+      if (rows.length < 2) {
+        throw new Error('No response rows found.');
+      }
 
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i];
+      const headers = rows[0].map(header =>
+        String(header || '')
+          .replace(/^\uFEFF/, '')
+          .trim()
+      );
 
-          if (cols.length < 2) continue;
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i];
 
-          const rowObj = {};
-
-          headers.forEach((h, idx) => {
-            rowObj[h] = cols[idx]
-              ? cols[idx].trim()
-              : '';
-          });
-
-          parsedRows.push(rowObj);
+        if (
+          !cols.some(value => String(value || '').trim() !== '')
+        ) {
+          continue;
         }
+
+        const rowObj = {};
+
+        headers.forEach((header, index) => {
+          rowObj[header] =
+            cols[index] !== undefined
+              ? String(cols[index]).trim()
+              : '';
+        });
+
+        parsedRows.push(rowObj);
       }
     }
 
     if (parsedRows.length === 0) {
       setImportStatusMsg({
-        text: 'Could not read any valid response rows. Please check format.',
+        text: 'Could not read any response rows from the file.',
         type: 'error'
       });
       return;
     }
 
-    const importedSevaks = parsedRows.map((item, idx) => {
-      const name =
-        item.fullName ||
-        item.FullName ||
-        item.Name ||
-        item.name ||
-        item['full name'] ||
-        item['fullname'] ||
-        item['sevak name'] ||
-        `Sevak ${submissions.length + idx + 1}`;
+    // ---------------------------------------------------------
+    // CONVERT EACH MICROSOFT FORMS RESPONSE INTO A SEVAK
+    // ---------------------------------------------------------
+    const importedSevaks = parsedRows
+      .map((item, idx) => {
 
-      const sidRaw =
-        item.sid ||
-        item['satsangi id'] ||
-        item['id'] ||
-        `SID-${Math.floor(1000 + Math.random() * 9000)}`;
+        // -----------------------------
+        // BASIC DETAILS
+        // -----------------------------
+        const name =
+          findExact(item, [
+            'Full Name',
+            'Name',
+            'Sevak Name'
+          ]);
 
-      const cleanSid = String(sidRaw)
-        .trim()
-        .toUpperCase()
-        .startsWith('SID-')
-          ? String(sidRaw).trim().toUpperCase()
-          : `SID-${String(sidRaw).trim().toUpperCase()}`;
+        const sidRaw =
+          findExact(item, [
+            'SID',
+            'Satsangi ID'
+          ]);
 
-      const mandal =
-        item.mandal ||
-        item['mandal name'] ||
-        'Yuvak Mandal (ages 22-35)';
+        const mandal =
+          findExact(item, [
+            'Mandal',
+            'Mandal Name'
+          ]);
 
-      const primarySeva =
-        item['primary preferred seva'] ||
-        item['primary preferred department'] ||
-        item['primary seva'] ||
-        item['preferred seva'] ||
-        '';
+        // Ignore rows that aren't genuine responses
+        if (!name && !sidRaw) {
+          return null;
+        }
 
-      const otherSevaRaw =
-        item['other preferred seva'] ||
-        item['other preferred departments'] ||
-        item['other seva'] ||
-        '';
+        // SID should NEVER be randomly invented.
+        if (!sidRaw) {
+          console.warn(
+            `Skipping ${name || `row ${idx + 2}`} because SID is missing.`
+          );
+          return null;
+        }
 
-      const otherSevaArr =
-        typeof otherSevaRaw === 'string'
-          ? otherSevaRaw
-              .split(/;|,/)
-              .map(d => d.trim())
-              .filter(Boolean)
-          : [];
+        const cleanSidValue = String(sidRaw)
+          .trim()
+          .replace(/^SID-/i, '');
 
-      const deptsRaw =
-        item['preferred departments'] ||
-        item['preferred seva'] ||
-        item['departments'] ||
-        item['dept'] ||
-        item['department'] ||
-        '';
+        const cleanSid = `SID-${cleanSidValue}`;
 
-      const preferredDepartments =
-        typeof deptsRaw === 'string' && deptsRaw.trim()
-          ? deptsRaw
-              .split(/;|,/)
-              .map(d => d.trim())
-              .filter(Boolean)
-          : primarySeva
-            ? [primarySeva, ...otherSevaArr]
-            : ['Annakut Setup/Windup'];
+        // -----------------------------
+        // PRIMARY SEVA
+        //
+        // Forms created several copies of the same
+        // question because of branching.
+        // Take whichever copy this person answered.
+        // -----------------------------
+        const primarySeva =
+          findAnsweredStartingWith(
+            item,
+            'Please select your seva preference'
+          );
 
-      const diwaliTimes =
-        item['diwali available time'] ||
-        item['diwali time'] ||
-        item['diwali'] ||
-        '';
+        // -----------------------------
+        // MANDAL-SPECIFIC SEVA OPTIONS
+        //
+        // These are the columns:
+        // Kishore Mandal
+        // Kishori Mandal
+        // Yuvak Mandal
+        // Yuvati Mandal
+        // Sanyukta Mandal
+        // Sanyukta Mahila Mandal
+        // -----------------------------
+        let mandalPreferenceHeading = '';
 
-      const annakutTimes =
-        item['annakut available time'] ||
-        item['annakut time'] ||
-        item['annakut'] ||
-        '';
+        const lowerMandal = String(mandal).toLowerCase();
 
-      const setupMonday =
-        item['availability for annakut setup monday 9th november'] ||
-        item['annakut setup monday 9th november'] ||
-        item['setup monday'] ||
-        item['setup'] ||
-        '';
+        if (lowerMandal.includes('kishori')) {
+          mandalPreferenceHeading = 'Kishori Mandal';
+        } else if (lowerMandal.includes('kishore')) {
+          mandalPreferenceHeading = 'Kishore Mandal';
+        } else if (lowerMandal.includes('yuvati')) {
+          mandalPreferenceHeading = 'Yuvati Mandal';
+        } else if (lowerMandal.includes('yuvak')) {
+          mandalPreferenceHeading = 'Yuvak Mandal';
+        } else if (lowerMandal.includes('sanyukta mahila')) {
+          mandalPreferenceHeading = 'Sanyukta Mahila Mandal';
+        } else if (lowerMandal.includes('sanyukta')) {
+          mandalPreferenceHeading = 'Sanyukta Mandal';
+        }
 
-      const windupTuesday =
-        item['availability for annakut setup windup tuesday 10th november'] ||
-        item['annakut setup windup tuesday 10th november'] ||
-        item['windup tuesday'] ||
-        item['windup'] ||
-        '';
+        const mandalSevaRaw = mandalPreferenceHeading
+          ? findExact(item, [mandalPreferenceHeading])
+          : '';
 
-      const dbsCreche =
-        item['dbs check & availabile for crèche'] ||
-        item['dbs check & available for creche'] ||
-        item['dbs check'] ||
-        item['availability for crèche'] ||
-        item['creche'] ||
-        'No';
+        const mandalSevas = splitAnswers(mandalSevaRaw);
 
-      const crecheTimes =
-        item['if yes times available for crèche'] ||
-        item['times available for crèche'] ||
-        item['creche times'] ||
-        'N/A';
+        // Combine primary + mandal-specific preferences,
+        // removing duplicates.
+        const preferredDepartments = [
+          ...new Set(
+            [
+              primarySeva,
+              ...mandalSevas
+            ].filter(Boolean)
+          )
+        ];
 
-      return {
-        id: `sub-excel-${Date.now()}-${idx}`,
-        sid: cleanSid,
-        fullName: name,
-        email:
-          item.email ||
-          item['email address'] ||
-          '',
-        mandal: mandal,
-        primaryPreferredSeva:
-          primarySeva ||
-          preferredDepartments[0] ||
-          'Unassigned',
-        otherPreferredSeva: otherSevaArr,
-        preferredDepartments:
-          preferredDepartments.length > 0
-            ? preferredDepartments
-            : ['Annakut Setup/Windup'],
-        diwaliTime:
-          diwaliTimes || '9am to 1pm',
-        annakutTime:
-          annakutTimes || '5pm to 10pm',
-        setupMondayTime:
-          setupMonday || '5pm to 10pm',
-        windupTuesdayTime:
-          windupTuesday || 'N/A',
-        dbsCrecheStatus: dbsCreche,
-        crecheAvailableTimes: crecheTimes,
+        // Everything other than the primary preference
+        // becomes an additional preference.
+        const otherPreferredSeva = preferredDepartments.filter(
+          seva => seva !== primarySeva
+        );
 
-        availability: {
-          diwali: diwaliTimes
-            ? diwaliTimes
-                .split(/;|,/)
-                .map(t => t.trim())
-                .filter(Boolean)
-            : ['9am to 1pm'],
+        // -----------------------------
+        // DIWALI / ANNAKUT AVAILABILITY
+        //
+        // Search every branched version and use the
+        // non-empty one for this response.
+        // -----------------------------
+        const diwaliTimes =
+          findAnsweredStartingWith(
+            item,
+            'Diwali - Sunday 8 November 2026'
+          );
 
-          setup_windup: setupMonday
-            ? setupMonday
-                .split(/;|,/)
-                .map(t => t.trim())
-                .filter(Boolean)
-            : ['1pm to 5pm'],
+        const annakutTimes =
+          findAnsweredStartingWith(
+            item,
+            'Annakut - Tuesday 10 November 2026'
+          );
 
-          annakut: annakutTimes
-            ? annakutTimes
-                .split(/;|,/)
-                .map(t => t.trim())
-                .filter(Boolean)
-            : ['5pm to 10pm']
-        },
+        // -----------------------------
+        // ANNAKUT SETUP / WINDUP
+        // -----------------------------
+        const canHelpSetupWindup =
+          findExact(item, [
+            'Are you able to help with Annakut setup/windup'
+          ]);
 
-        crecheAvailability: dbsCreche,
-        status: 'Pending',
-        assignedShifts: []
-      };
-    });
+        const setupMonday =
+          findAnsweredStartingWith(
+            item,
+            'Please select your availability for Annakut setup seva on Monday 9 November'
+          );
 
-    // Merge imported responses with existing sevaks by SID.
-    // Existing rota allocations and IDs are preserved.
+        const windupTuesday =
+          findAnsweredStartingWith(
+            item,
+            'Please select your availability for Annakut setup/windup seva on Tuesday 10 November'
+          );
+
+        // -----------------------------
+        // CRÈCHE
+        // -----------------------------
+        const dbsCreche =
+          findAnsweredStartingWith(
+            item,
+            'Are you DBS-checked and available to help with the Crèche during Annakut'
+          );
+
+        const crecheTimes =
+          findAnsweredStartingWith(
+            item,
+            'Please select your availability for Crèche seva on Tuesday 10 November'
+          );
+
+        // -----------------------------
+        // SPECIAL MANDIR SHOP SETUP QUESTION
+        // Keep this too if they answered Yes.
+        // -----------------------------
+        const mandirShopSetup =
+          findAnsweredStartingWith(
+            item,
+            'Can you help with Mandir Shop setup on Monday 9 November'
+          );
+
+        // If someone answered Yes to the special
+        // Mandir Shop setup question but has no general
+        // Monday setup time, record its stated time.
+        const finalSetupMonday =
+          setupMonday ||
+          (
+            String(mandirShopSetup).toLowerCase() === 'yes'
+              ? '7.30pm to 9.00pm'
+              : ''
+          );
+
+        // -----------------------------
+        // BUILD SEVAK
+        // -----------------------------
+        return {
+          id: `sub-excel-${Date.now()}-${idx}`,
+
+          sid: cleanSid,
+
+          fullName:
+            name || 'Name not specified',
+
+          email:
+            findExact(item, [
+              'Email',
+              'Email Address'
+            ]),
+
+          mandal:
+            mandal || 'Not specified',
+
+          primaryPreferredSeva:
+            primarySeva || 'Not specified',
+
+          otherPreferredSeva,
+
+          preferredDepartments,
+
+          // IMPORTANT:
+          // NO FAKE DEFAULT TIMES
+          diwaliTime:
+            diwaliTimes || 'Not specified',
+
+          annakutTime:
+            annakutTimes || 'Not specified',
+
+          setupMondayTime:
+            finalSetupMonday || 'Not specified',
+
+          windupTuesdayTime:
+            windupTuesday || 'Not specified',
+
+          dbsCrecheStatus:
+            dbsCreche || 'No',
+
+          crecheAvailableTimes:
+            crecheTimes || 'N/A',
+
+          availability: {
+            diwali: splitAnswers(diwaliTimes),
+            setup_windup: splitAnswers(finalSetupMonday),
+            annakut: splitAnswers(annakutTimes)
+          },
+
+          crecheAvailability:
+            dbsCreche || 'No',
+
+          status: 'Pending',
+
+          assignedShifts: [],
+
+          // Kept here in case you want to display this later
+          canHelpSetupWindup:
+            canHelpSetupWindup || 'Not specified'
+        };
+      })
+      .filter(Boolean);
+
+    if (importedSevaks.length === 0) {
+      setImportStatusMsg({
+        text:
+          'No valid sevaks were found. Please check that the file contains Full Name and SID columns.',
+        type: 'error'
+      });
+      return;
+    }
+
+    // ---------------------------------------------------------
+    // MERGE WITH EXISTING SEVAKS
+    //
+    // VERY IMPORTANT:
+    // Existing IDs, allocations and status are preserved.
+    // ---------------------------------------------------------
     const mergedSevaks = importedSevaks.map(imported => {
       const existing = submissions.find(
         sub =>
-          sub.sid.trim().toUpperCase() ===
-          imported.sid.trim().toUpperCase()
+          String(sub.sid || '').trim().toUpperCase() ===
+          String(imported.sid || '').trim().toUpperCase()
       );
 
       if (!existing) {
@@ -703,24 +954,34 @@ const loadData = async () => {
       return {
         ...existing,
 
-        // Update the Forms/profile information
+        // Update information from the newest Forms response
         fullName: imported.fullName,
         email: imported.email,
         mandal: imported.mandal,
-        primaryPreferredSeva: imported.primaryPreferredSeva,
-        otherPreferredSeva: imported.otherPreferredSeva,
-        preferredDepartments: imported.preferredDepartments,
-        diwaliTime: imported.diwaliTime,
-        annakutTime: imported.annakutTime,
-        setupMondayTime: imported.setupMondayTime,
-        windupTuesdayTime: imported.windupTuesdayTime,
-        dbsCrecheStatus: imported.dbsCrecheStatus,
-        crecheAvailableTimes: imported.crecheAvailableTimes,
-        availability: imported.availability,
-        crecheAvailability: imported.crecheAvailability,
+        primaryPreferredSeva:
+          imported.primaryPreferredSeva,
+        otherPreferredSeva:
+          imported.otherPreferredSeva,
+        preferredDepartments:
+          imported.preferredDepartments,
+        diwaliTime:
+          imported.diwaliTime,
+        annakutTime:
+          imported.annakutTime,
+        setupMondayTime:
+          imported.setupMondayTime,
+        windupTuesdayTime:
+          imported.windupTuesdayTime,
+        dbsCrecheStatus:
+          imported.dbsCrecheStatus,
+        crecheAvailableTimes:
+          imported.crecheAvailableTimes,
+        availability:
+          imported.availability,
+        crecheAvailability:
+          imported.crecheAvailability,
 
-        // IMPORTANT:
-        // Preserve existing rota information
+        // DO NOT overwrite existing rota information
         id: existing.id,
         sid: existing.sid,
         status: existing.status,
@@ -728,28 +989,38 @@ const loadData = async () => {
       };
     });
 
-    // Securely save all imported/updated sevaks
-    const { data, error } = await supabase.rpc('admin_import_sevaks', {
-      input_admin_sid: loggedInSevak.sid,
-      input_sevaks: mergedSevaks.map(submissionToDb)
-    });
+    // ---------------------------------------------------------
+    // SAVE TO SUPABASE USING EXISTING SECURE RPC
+    // ---------------------------------------------------------
+    const { data, error } = await supabase.rpc(
+      'admin_import_sevaks',
+      {
+        input_admin_sid: loggedInSevak.sid,
+        input_sevaks: mergedSevaks.map(submissionToDb)
+      }
+    );
+
     if (error) throw error;
+
     if (!data?.success) {
-      throw new Error(data?.message || 'Import failed');
+      throw new Error(
+        data?.message || 'Import failed'
+      );
     }
-    // Reload securely so the screen matches the database
+
+    // Reload the real database data
     await loadAdminData(loggedInSevak.sid);
 
     const existingSidSet = new Set(
       submissions.map(sub =>
-        sub.sid.trim().toUpperCase()
+        String(sub.sid || '').trim().toUpperCase()
       )
     );
 
     const newCount = importedSevaks.filter(
       sub =>
         !existingSidSet.has(
-          sub.sid.trim().toUpperCase()
+          String(sub.sid || '').trim().toUpperCase()
         )
     ).length;
 
@@ -764,14 +1035,19 @@ const loadData = async () => {
     });
 
     setExcelPasteData('');
-    setLastSynced(new Date().toLocaleTimeString());
+    setLastSynced(
+      new Date().toLocaleTimeString()
+    );
 
   } catch (err) {
-    console.error('Error importing Excel data:', err);
+    console.error(
+      'Error importing Microsoft Forms data:',
+      err
+    );
 
     setImportStatusMsg({
       text:
-        'Failed to import the data. Please check the file format and try again.',
+        'Failed to import the data. Please check that this is the Microsoft Forms CSV/export and try again.',
       type: 'error'
     });
   }
