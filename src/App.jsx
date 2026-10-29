@@ -1346,7 +1346,6 @@ const loadData = async () => {
       requiredGents: 0,
       requiredMahila: 0
     });
-    });
 
   } catch (error) {
     console.error('Error creating shift:', error);
