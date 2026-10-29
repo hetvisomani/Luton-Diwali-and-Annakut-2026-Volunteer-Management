@@ -2092,42 +2092,29 @@ const handleProcessExcelData = async (textInput) => {
   ]);
   
   return (
-  <div
-    className={
-      darkMode
-        ? 'min-h-screen bg-[#120b18] text-slate-100 transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden'
-        : 'min-h-screen bg-gradient-to-b from-[#fffaf0] via-[#fff7ed] to-[#fdf2e9] text-slate-800 transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden'
-    }
-  >
+    <div className={`min-h-screen ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-gradient-to-b from-amber-50/70 via-orange-50/40 to-amber-100/50 text-slate-800'} transition-colors duration-200 font-sans pb-20 sm:pb-8 relative overflow-x-hidden`}>
       {/* Background Decorative Rings */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-20 dark:opacity-15">
-        <div className="absolute top-0 -left-20 w-96 h-96 bg-fuchsia-400 rounded-full filter blur-3xl"></div>
-        <div className="absolute top-1/3 right-0 w-80 h-80 bg-yellow-300 rounded-full filter blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-teal-300 rounded-full filter blur-3xl"></div>
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-25 dark:opacity-15">
+        <div className="absolute top-0 -left-20 w-96 h-96 bg-amber-400 rounded-full filter blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/2 right-0 w-80 h-80 bg-orange-500 rounded-full filter blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-red-500 rounded-full filter blur-3xl"></div>
       </div>
 
-      <div className="fixed top-6 left-6 pointer-events-none z-0 text-[#7c163d]/15 dark:text-amber-300/10 hidden lg:block">
+      <div className="fixed top-6 left-6 pointer-events-none z-0 text-amber-500/20 dark:text-amber-400/10 hidden lg:block">
         <RangoliArt className="w-48 h-48 animate-spin-slow" />
       </div>
 
       {/* Header */}
-      <header
-      className={
-      darkMode
-      ? 'border-b sticky top-0 z-30 backdrop-blur-md shadow-lg bg-[#190D25]/95 border-[#D4A017]/30'
-      : 'border-b sticky top-0 z-30 backdrop-blur-md shadow-lg bg-gradient-to-r from-[#5B1678] via-[#9C1C69] to-[#C2185B] border-[#F6C344]'
-      }
-      >
+      <header className={`border-b ${darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-amber-200'} sticky top-0 z-30 backdrop-blur-md shadow-md`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-  <div className="p-2.5 bg-gradient-to-br from-[#5b1235] via-[#7c163d] to-[#a43b5b] rounded-2xl text-[#f8d98b] shadow-lg shadow-[#7c163d]/20 relative ring-1 ring-[#d6b36a]/40">
-    <Flame className="w-6 h-6 animate-bounce" />
-  </div>
-
-  <div>
-    <h1 className="text-sm sm:text-base lg:text-xl font-black bg-gradient-to-r from-[#65163b] via-[#8f234d] to-[#b27a28] bg-clip-text text-transparent">
-      BAPS Luton Diwali & Annakut 2026
-    </h1>
+            <div className="p-2.5 bg-gradient-to-tr from-amber-500 via-orange-500 to-red-600 rounded-2xl text-white shadow-lg shadow-orange-500/20 relative">
+              <Flame className="w-6 h-6 animate-bounce" />
+            </div>
+            <div>
+              <h1 className="text-sm sm:text-base lg:text-xl font-black bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 bg-clip-text text-transparent">
+                BAPS Luton Diwali & Annakut 2026
+              </h1>
               <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">
                 Sevak Management Portal
               </p>
@@ -2139,15 +2126,13 @@ const handleProcessExcelData = async (textInput) => {
               <button
                 onClick={handleSyncMicrosoftForm}
                 title="Sync Microsoft Form"
-                className={
-                isSyncing
-                    ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-amber-500 text-white'
-                    : 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                }
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                  isSyncing 
+                    ? 'bg-amber-500 text-white' 
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                }`}
               >
-                <RefreshCw
-                className={isSyncing ? 'w-3.5 h-3.5 animate-spin' : 'w-3.5 h-3.5'}
-                />
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Sync Responses</span>
               </button>
             )}
@@ -2166,11 +2151,11 @@ const handleProcessExcelData = async (textInput) => {
           <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 no-scrollbar">
             <button
               onClick={() => setActiveTab('portal')}
-              className={
+              className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                 activeTab === 'portal'
-                  ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                  : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
             >
               <User className="w-4 h-4" /> Sevak Rota Schedule
             </button>
@@ -2179,47 +2164,47 @@ const handleProcessExcelData = async (textInput) => {
               <>
                 <button
                   onClick={() => setActiveTab('form')}
-                  className={
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                     activeTab === 'form'
-                      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-                      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
                 >
                   <FileSpreadsheet className="w-4 h-4" /> Excel Data Connector
                 </button>
 
                 <button
-  onClick={() => setActiveTab('allocation')}
-  className={
-    activeTab === 'allocation'
-      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-  }
->
-  <Users className="w-4 h-4" /> Volunteer Allocation
-</button>
+                  onClick={() => setActiveTab('allocation')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'allocation'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Users className="w-4 h-4" /> Volunteer Allocation
+                </button>
 
-<button
-  onClick={() => setActiveTab('masterRota')}
-  className={
-    activeTab === 'masterRota'
-      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-  }
->
-  <Calendar className="w-4 h-4" /> Master Rota
-</button>
+                <button
+                  onClick={() => setActiveTab('masterRota')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'masterRota'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" /> Master Rota
+                </button>
 
-<button
-  onClick={() => setActiveTab('ragGaps')}
-  className={
-    activeTab === 'ragGaps'
-      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white shadow-md shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/30'
-      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-  }
->
-  <BarChart3 className="w-4 h-4" /> RAG & Calendar Matrix
-</button>
+                <button
+                  onClick={() => setActiveTab('ragGaps')}
+                  className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === 'ragGaps'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" /> RAG & Calendar Matrix
+                </button>
               </>
             )}
           </nav>
@@ -2248,11 +2233,11 @@ const handleProcessExcelData = async (textInput) => {
           className={`max-w-xl mx-auto p-6 sm:p-8 rounded-3xl border ${
             darkMode
               ? 'bg-slate-900 border-slate-800'
-              : 'bg-[#fffdf8] border-[#d6b36a]/50'
+              : 'bg-white border-amber-200'
           } shadow-2xl space-y-6 text-center`}
         >
           <div className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#65163b] to-[#9c3158] text-[#f8d98b] flex items-center justify-center mx-auto shadow-lg shadow-[#65163b]/20 ring-1 ring-[#d6b36a]/40">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-orange-500/30">
               <KeyRound className="w-6 h-6" />
             </div>
 
@@ -2279,7 +2264,7 @@ const handleProcessExcelData = async (textInput) => {
                 className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
                   darkMode
                     ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500'
-                    : 'bg-[#fffcf7] border-[#d6b36a]/50 text-slate-900 focus:border-[#8f234d] focus:ring-2 focus:ring-[#8f234d]/10'
+                    : 'bg-slate-50 border-amber-200 text-slate-900 focus:border-amber-500'
                 }`}
               />
             </div>
@@ -2292,7 +2277,7 @@ const handleProcessExcelData = async (textInput) => {
 
             <button
               type="submit"
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#65163b] via-[#811b46] to-[#a12d55] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#65163b]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 ring-1 ring-[#d6b36a]/30"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2"
             >
               View My Rota Schedule
             </button>
@@ -2302,9 +2287,7 @@ const handleProcessExcelData = async (textInput) => {
     ) : (
               <div className="space-y-6">
                 {/* Sevak Logged-in Header */}
-                <div className={`p-6 rounded-3xl border ${darkMode
-  ? 'bg-[#1b1021] border-[#4a2849]'
-  : 'bg-[#fffdf8] border-[#d6b36a]/50'} shadow-xl space-y-4`}>
+                <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-xl space-y-4`}>
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
@@ -2328,7 +2311,7 @@ const handleProcessExcelData = async (textInput) => {
                           >
                           Jay Swaminarayan,
                         </h2>
-                        <span className="block text-xl sm:text-2xl font-black text-[#8f234d] dark:text-[#f0c96b]">
+                        <span className="block text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400">
                           {loggedInSevak.fullName}
                         </span>
                       </div>
