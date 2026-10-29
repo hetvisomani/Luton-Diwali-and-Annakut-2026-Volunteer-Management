@@ -2107,7 +2107,7 @@ const handleProcessExcelData = async (textInput) => {
       </div>
 
       {/* Header */}
-      <header className={`border-b ${darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-[#fffdf8]/95 border-[#d6b36a]/40'} sticky top-0 z-30 backdrop-blur-md shadow-md`}>
+      <header className={`border-b sticky top-0 z-30 backdrop-blur-md shadow-lg ${darkMode ? 'bg-[#190D25]/95 border-[#D4A017]/30' : 'bg-gradient-to-r from-[#5B1678] via-[#9C1C69] to-[#C2185B] border-[#F6C344]'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-[#5b1235] via-[#7c163d] to-[#a43b5b] rounded-2xl text-[#f8d98b] shadow-lg shadow-[#7c163d]/20 relative ring-1 ring-[#d6b36a]/40"
