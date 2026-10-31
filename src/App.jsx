@@ -3615,12 +3615,18 @@ const handleProcessExcelData = async (textInput) => {
             {/* Department rows */}
             {ragDepartments.map(dept => {
 
-              const departmentShifts =
-                ragDayShifts.filter(
-                  shift => shift.department === dept
-                );
+  const departmentShifts =
+    ragDayShifts.filter(
+      shift => shift.department === dept
+    );
 
-              return (
+  // Do not show departments that have no actual shifts
+  // for the currently selected RAG day.
+  if (departmentShifts.length === 0) {
+    return null;
+  }
+
+  return (
                 <div
                   key={dept}
                   className={`flex border-b last:border-b-0 ${
