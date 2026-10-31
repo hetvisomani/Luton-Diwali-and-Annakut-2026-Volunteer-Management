@@ -3026,9 +3026,9 @@ const handleProcessExcelData = async (textInput) => {
                   }`}
                 >
                   <option value="ALL">All Departments ({DEPARTMENTS.length})</option>
-                  {DEPARTMENTS.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
+                  {ragDepartments.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
                 </select>
 
                 <select
