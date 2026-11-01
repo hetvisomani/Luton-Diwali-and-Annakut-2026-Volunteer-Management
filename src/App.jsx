@@ -1472,60 +1472,123 @@ const handleProcessExcelData = async (textInput) => {
     }, 1000);
   };
 
-  const assignVolunteerToShift = async (submissionId, shiftId) => {
+  const getManualWorkingTime = (sevak, shift) => {
+  let availability;
+
+  if (shift.day === 'diwali') {
+    availability = getUsableAvailability(
+      sevak.diwaliTime,
+      sevak.availability?.diwali
+    );
+  } else if (shift.day === 'setup_windup') {
+    availability = getUsableAvailability(
+      sevak.setupMondayTime,
+      sevak.availability?.setup_windup
+    );
+  } else if (
+    shift.day === 'annakut' &&
+    shift.department === 'Annakut Setup/Windup'
+  ) {
+    availability = getUsableAvailability(
+      sevak.windupTuesdayTime,
+      []
+    );
+  } else if (shift.day === 'annakut') {
+    availability = getUsableAvailability(
+      sevak.annakutTime,
+      sevak.availability?.annakut
+    );
+  } else {
+    return null;
+  }
+
+  const shiftTime = parseShiftTime(shift.timeSlot);
+
+  if (!shiftTime) return null;
+
+  const matchingTimes = getAvailabilityRanges(availability)
+    .map(time => ({
+      start: Math.max(time.start, shiftTime.start),
+      end: Math.min(time.end, shiftTime.end)
+    }))
+    .filter(time => time.end > time.start)
+    .sort((a, b) =>
+      (b.end - b.start) - (a.end - a.start)
+    );
+
+  return matchingTimes[0] || null;
+};
+ const assignVolunteerToShift = async (submissionId, shiftId) => {
   try {
     const shift = shifts.find(s => s.id === shiftId);
     const submission = submissions.find(s => s.id === submissionId);
 
     if (!shift || !submission) return;
 
-    // Don't add the same sevak twice
+    // Don't add the same sevak twice.
     if (shift.assignedVolunteers.includes(submissionId)) return;
 
-    const updatedShift = {
-      ...shift,
-      assignedVolunteers: [...shift.assignedVolunteers, submissionId]
-    };
+    // Calculate the individual's actual working hours.
+    const workingTime = getManualWorkingTime(submission, shift);
 
-    const updatedSubmission = {
-      ...submission,
-      status: 'Assigned',
-      assignedShifts: submission.assignedShifts.includes(shiftId)
-        ? submission.assignedShifts
-        : [...submission.assignedShifts, shiftId]
-    };
+    // STEP 1: Save the assignment.
+    const { data, error } = await supabase.rpc(
+      'admin_assign_volunteer',
+      {
+        input_admin_sid: loggedInSevak.sid,
+        input_submission_id: submissionId,
+        input_shift_id: shiftId
+      }
+    );
 
-    // Securely save the allocation through Supabase
-    const { data, error } = await supabase.rpc('admin_assign_volunteer', {
-      input_admin_sid: loggedInSevak.sid,
-      input_submission_id: submissionId,
-      input_shift_id: shiftId
-    });
-    
     if (error) throw error;
-    
+
     if (!data?.success) {
       throw new Error(data?.message || 'Allocation failed');
     }
 
-    // Update what is shown on screen
-    setShifts(prevShifts =>
-      prevShifts.map(s =>
-        s.id === shiftId ? updatedShift : s
-      )
-    );
+    // STEP 2: Save individual working hours if available.
+    let workingTimeSaved = false;
 
-    setSubmissions(prevSubmissions =>
-      prevSubmissions.map(s =>
-        s.id === submissionId ? updatedSubmission : s
-      )
-    );
+    if (workingTime) {
+      const { data: timeData, error: timeError } =
+        await supabase.rpc('admin_save_volunteer_shift_time', {
+          input_admin_sid: loggedInSevak.sid,
+          input_submission_id: submissionId,
+          input_shift_id: shiftId,
+          input_start: workingTime.start,
+          input_end: workingTime.end
+        });
+
+      if (!timeError && timeData?.success) {
+        workingTimeSaved = true;
+      } else {
+        console.error(
+          'Individual working hours could not be saved:',
+          timeError || timeData?.message
+        );
+      }
+    }
+
+    // Refresh from the database so the screen shows the
+    // actual saved assignment and working hours.
+    await loadAdminData(loggedInSevak.sid);
+
+    if (!workingTime) {
+      alert(
+        'The volunteer was assigned successfully, but no matching individual working hours could be calculated from their recorded availability.'
+      );
+    } else if (!workingTimeSaved) {
+      alert(
+        'The volunteer was assigned successfully, but their individual working hours could not be saved. Please try again.'
+      );
+    }
 
   } catch (error) {
     console.error('Error assigning volunteer:', error);
+
     alert('The allocation could not be saved. Please try again.');
 
-    // Reload the real database data if something went wrong
     if (loggedInSevak?.isAdmin) {
       await loadAdminData(loggedInSevak.sid);
     } else {
