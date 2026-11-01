@@ -2333,74 +2333,83 @@ const buildAutoAllocationPreview = () => {
           return;
         }
 
-        // Rank shifts by how well they match the availability.
-        // Greatest overlap wins. If there is no overlap, choose
-        // the shift with the smallest time gap.
-        const rankedShifts = eligibleShifts.map(shift => {
-          const shiftTime = parseShiftTime(shift.timeSlot);
+        // Only allocate to shifts that genuinely overlap
+// with the sevak's availability.
+const rankedShifts = eligibleShifts
+  .map(shift => {
+    const shiftTime = parseShiftTime(shift.timeSlot);
 
-          const overlap = Math.max(
-            0,
-            Math.min(
-              availableTime.end,
-              shiftTime.end
-            ) -
-            Math.max(
-              availableTime.start,
-              shiftTime.start
-            )
-          );
+    const workingStart = Math.max(
+      availableTime.start,
+      shiftTime.start
+    );
 
-          const gap = overlap > 0
-            ? 0
-            : Math.max(
-                shiftTime.start - availableTime.end,
-                availableTime.start - shiftTime.end,
-                0
-              );
+    const workingEnd = Math.min(
+      availableTime.end,
+      shiftTime.end
+    );
 
-          return {
-            shift,
-            shiftTime,
-            overlap,
-            gap
-          };
-        }).sort((a, b) => {
-          if (a.overlap !== b.overlap) {
-            return b.overlap - a.overlap;
-          }
+    const overlap = workingEnd - workingStart;
 
-          if (a.gap !== b.gap) {
-            return a.gap - b.gap;
-          }
+    return {
+      shift,
+      shiftTime,
+      overlap,
+      workingStart,
+      workingEnd
+    };
+  })
+  // A shift must have at least some genuine overlapping time.
+  .filter(item => item.overlap > 0)
+  .sort((a, b) => {
+    if (a.overlap !== b.overlap) {
+      return b.overlap - a.overlap;
+    }
 
-          return a.shiftTime.start - b.shiftTime.start;
-        });
+    return a.shiftTime.start - b.shiftTime.start;
+  });
 
-        // Select the best matching shift.
-        const chosen = rankedShifts[0];
+// No genuine overlap means no allocation.
+if (!rankedShifts.length) {
+  unmatched.push({
+    sevakName: sevak.fullName,
+    task: task.label,
+    reason:
+      `No ${preferredDepartment} shift overlaps the recorded ${task.label} availability.`
+  });
+  return;
+}
 
-        // Update only our temporary copy so later proposed
-        // allocations also respect capacity and time conflicts.
-        chosen.shift.assignedVolunteers = [
-          ...(chosen.shift.assignedVolunteers || []),
-          sevak.id
-        ];
+// Select the shift with the greatest genuine overlap.
+const chosen = rankedShifts[0];
 
-        allocations.push({
-          submissionId: sevak.id,
-          sevakName: sevak.fullName,
-          shiftId: chosen.shift.id,
-          department: chosen.shift.department,
-          day: chosen.shift.day,
-          timeSlot: chosen.shift.timeSlot,
-          task: task.label,
-          availability:
-            `${formatTimelineTime(availableTime.start)}–${formatTimelineTime(availableTime.end)}`,
-          matchType: chosen.overlap > 0
-            ? 'Overlapping time'
-            : 'Closest available shift'
-        });
+// Update only our temporary copy so later proposed
+// allocations also respect capacity and time conflicts.
+chosen.shift.assignedVolunteers = [
+  ...(chosen.shift.assignedVolunteers || []),
+  sevak.id
+];
+
+allocations.push({
+  submissionId: sevak.id,
+  sevakName: sevak.fullName,
+  shiftId: chosen.shift.id,
+  department: chosen.shift.department,
+  day: chosen.shift.day,
+  timeSlot: chosen.shift.timeSlot,
+  task: task.label,
+
+  availability:
+    `${formatTimelineTime(availableTime.start)}–${formatTimelineTime(availableTime.end)}`,
+
+  // The exact portion of the shift this sevak can work.
+  workingStart: chosen.workingStart,
+  workingEnd: chosen.workingEnd,
+  workingTime:
+    `${formatTimelineTime(chosen.workingStart)}–${formatTimelineTime(chosen.workingEnd)}`,
+
+  matchType: 'Overlapping time'
+});
       });
     });
   });
