@@ -444,8 +444,9 @@ const shiftFromDb = (row) => ({
       ? null
       : Number(row.required_mahila),
 
-  assignedVolunteers: row.assigned_volunteers || [],
+ assignedVolunteers: row.assigned_volunteers || [],
   assignedVolunteerTimes: row.assigned_volunteer_times || {},
+  checkedInVolunteers: row.checked_in_volunteers || {},
   leadVolunteerId: row.lead_volunteer_id,
   location: row.location || '',
   isUrgent: row.is_urgent || false
@@ -1643,6 +1644,60 @@ const handleProcessExcelData = async (textInput) => {
     } else {
       await loadData();
     }
+  }
+};
+
+  const handleCheckInVolunteer = async (submissionId, shiftId) => {
+  try {
+    const { data, error } = await supabase.rpc(
+      'admin_check_in_volunteer',
+      {
+        input_admin_sid: loggedInSevak.sid,
+        input_submission_id: submissionId,
+        input_shift_id: shiftId
+      }
+    );
+
+    if (error) throw error;
+
+    if (!data?.success) {
+      throw new Error(data?.message || 'Check-in failed');
+    }
+
+    await loadAdminData(loggedInSevak.sid);
+
+  } catch (error) {
+    console.error('Error checking in volunteer:', error);
+    alert('The volunteer could not be checked in. Please try again.');
+
+    await loadAdminData(loggedInSevak.sid);
+  }
+};
+
+const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
+  try {
+    const { data, error } = await supabase.rpc(
+      'admin_undo_check_in_volunteer',
+      {
+        input_admin_sid: loggedInSevak.sid,
+        input_submission_id: submissionId,
+        input_shift_id: shiftId
+      }
+    );
+
+    if (error) throw error;
+
+    if (!data?.success) {
+      throw new Error(data?.message || 'Undo check-in failed');
+    }
+
+    await loadAdminData(loggedInSevak.sid);
+
+  } catch (error) {
+    console.error('Error undoing volunteer check-in:', error);
+    alert('The check-in could not be undone. Please try again.');
+
+    await loadAdminData(loggedInSevak.sid);
   }
 };
 
@@ -3655,6 +3710,7 @@ const handleConfirmAutoAllocation = async (
                             const isLead = shift.leadVolunteerId === sub.id;
                             const volunteerWorkingTime =
                               shift.assignedVolunteerTimes?.[sub.id];
+                            const checkedIn = shift.checkedInVolunteers?.[sub.id];
 
                             return (
                               <div
@@ -3690,13 +3746,47 @@ const handleConfirmAutoAllocation = async (
 </span>
                                 </div>
 
-                                <button
-                                  onClick={() => unassignVolunteerFromShift(sub.id, shift.id)}
-                                  className="text-slate-400 hover:text-rose-500 p-1"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                                <div className="flex items-center gap-2 shrink-0">
+
+  {checkedIn ? (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+        ✓ Checked in
+        {checkedIn.checked_in_at && (
+          <span className="ml-1 font-medium">
+            {new Date(checkedIn.checked_in_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </span>
+        )}
+      </span>
+
+      <button
+        onClick={() => handleUndoCheckInVolunteer(sub.id, shift.id)}
+        title="Undo check-in"
+        className="text-[10px] font-semibold text-rose-500 hover:text-rose-700 underline"
+      >
+        Undo
+      </button>
+    </div>
+  ) : (
+    <button
+      onClick={() => handleCheckInVolunteer(sub.id, shift.id)}
+      className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold whitespace-nowrap"
+    >
+      Check in
+    </button>
+  )}
+
+  <button
+    onClick={() => unassignVolunteerFromShift(sub.id, shift.id)}
+    title="Remove volunteer from shift"
+    className="text-slate-400 hover:text-rose-500 p-1"
+  >
+    <X className="w-3.5 h-3.5" />
+  </button>
+                                </div>
                             );
                           })
                         )}
