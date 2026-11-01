@@ -445,6 +445,7 @@ const shiftFromDb = (row) => ({
       : Number(row.required_mahila),
 
   assignedVolunteers: row.assigned_volunteers || [],
+  assignedVolunteerTimes: row.assigned_volunteer_times || {},
   leadVolunteerId: row.lead_volunteer_id,
   location: row.location || '',
   isUrgent: row.is_urgent || false
@@ -2444,6 +2445,7 @@ const handleBuildAutoAllocationPreview = async () => {
   
 // Save only the allocations the admin has reviewed and confirmed.
 
+
 const handleConfirmAutoAllocation = async (
   previewToSave = autoAllocationPreview
 ) => {
@@ -2455,9 +2457,11 @@ const handleConfirmAutoAllocation = async (
   setIsApplyingAutoAllocation(true);
 
   const failedAllocations = [];
+  const failedWorkingTimes = [];
 
   try {
     for (const allocation of previewToSave.allocations) {
+      // STEP 1: Assign the volunteer to the shift.
       try {
         const { data, error } = await supabase.rpc(
           'admin_assign_volunteer',
@@ -2481,22 +2485,66 @@ const handleConfirmAutoAllocation = async (
         );
 
         failedAllocations.push(allocation);
+        continue;
+      }
+
+      // STEP 2: Save the volunteer's actual working hours.
+      try {
+        const { data, error } = await supabase.rpc(
+          'admin_save_volunteer_shift_time',
+          {
+            input_admin_sid: loggedInSevak.sid,
+            input_submission_id: allocation.submissionId,
+            input_shift_id: allocation.shiftId,
+            input_start: allocation.workingStart,
+            input_end: allocation.workingEnd
+          }
+        );
+
+        if (error) throw error;
+
+        if (!data?.success) {
+          throw new Error(
+            data?.message || 'Working hours could not be saved'
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Working hours save failed:',
+          allocation,
+          error
+        );
+
+        failedWorkingTimes.push(allocation);
       }
     }
 
     await loadAdminData(loggedInSevak.sid);
     setAutoAllocationPreview(null);
 
+    const successfulAllocations =
+      previewToSave.allocations.length - failedAllocations.length;
+
+    let message =
+      `${successfulAllocations} volunteer allocations saved successfully.`;
+
     if (failedAllocations.length > 0) {
-      alert(
-        `${previewToSave.allocations.length - failedAllocations.length} allocations saved. ` +
-        `${failedAllocations.length} could not be saved. Your rota has been refreshed.`
-      );
-    } else {
-      alert(
-        `${previewToSave.allocations.length} rota allocations saved successfully!`
-      );
+      message +=
+        `\n${failedAllocations.length} allocations could not be saved.`;
     }
+
+    if (failedWorkingTimes.length > 0) {
+      message +=
+        `\n${failedWorkingTimes.length} working-time records could not be saved.`;
+    } else if (successfulAllocations > 0) {
+      message +=
+        '\nAll individual working hours were saved successfully.';
+    }
+
+    message += '\n\nYour rota has been refreshed.';
+
+    alert(message);
+
   } finally {
     setIsApplyingAutoAllocation(false);
   }
@@ -2963,6 +3011,8 @@ const handleConfirmAutoAllocation = async (
                           if (!shift) return null;
                           const isLead = shift.leadVolunteerId === loggedInSevak.id;
                           const deptContact = DEPARTMENT_LEADS[shift.department];
+                        const personalWorkingTime =
+                          shift.assignedVolunteerTimes?.[loggedInSevak.id];
                           const dayObj = DAYS.find(d => d.id === shift.day);
 
                           return (
@@ -3002,7 +3052,11 @@ const handleConfirmAutoAllocation = async (
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Clock className="w-4 h-4 text-amber-500" />
-                                  <span>{shift.timeSlot}</span>
+                                  <span className="font-semibold">
+                                    {personalWorkingTime
+                                    ? `${formatTimelineTime(personalWorkingTime.start)}–${formatTimelineTime(personalWorkingTime.end)}`
+                                    : shift.timeSlot}
+                                  </span>
                                 </div>
                               </div>
 
@@ -3599,6 +3653,8 @@ const handleConfirmAutoAllocation = async (
                             const sub = submissions.find(s => s.id === subId);
                             if (!sub) return null;
                             const isLead = shift.leadVolunteerId === sub.id;
+                            const volunteerWorkingTime =
+                              shift.assignedVolunteerTimes?.[sub.id];
 
                             return (
                               <div
@@ -3620,12 +3676,18 @@ const handleConfirmAutoAllocation = async (
                                     <Crown className="w-3 h-3" />
                                   </button>
                                   <span
-                                    className={`font-bold ${
-                                      darkMode ? 'text-white' : 'text-slate-900'
-                                    }`}
-                                  >
-                                    {sub.fullName}
-                                  </span>
+  className={`font-bold ${
+    darkMode ? 'text-white' : 'text-slate-900'
+  }`}
+>
+  {sub.fullName}
+
+  {volunteerWorkingTime && (
+    <span className="ml-2 font-medium text-[10px] text-emerald-600 dark:text-emerald-400">
+      ({formatTimelineTime(volunteerWorkingTime.start)}–{formatTimelineTime(volunteerWorkingTime.end)})
+    </span>
+  )}
+</span>
                                 </div>
 
                                 <button
