@@ -590,6 +590,10 @@ const loadData = async () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
 
+  // Automatic rota allocation preview state
+  const [autoAllocationPreview, setAutoAllocationPreview] = useState(null);
+  const [isApplyingAutoAllocation, setIsApplyingAutoAllocation] = useState(false);
+
   // Edit Sevak Modal state
   const [editingSevak, setEditingSevak] = useState(null);
 
@@ -2070,7 +2074,7 @@ const handleProcessExcelData = async (textInput) => {
       .replace(/[–—]/g, '-');
     
     const parts = normalised
-      .split(/\s+(?:to|-)\s+/)
+      .split(/\s*(?:to|-)\s*/i)
       .map(part => part.trim())
       .filter(Boolean);
     
@@ -2088,6 +2092,411 @@ const handleProcessExcelData = async (textInput) => {
       duration: end - start
     };
   };
+
+  
+// Split a sevak's availability into individual time ranges.
+const getAvailabilityRanges = (rawAvailability) => {
+  const entries = Array.isArray(rawAvailability)
+    ? rawAvailability
+    : String(rawAvailability || '').split(/[,;\n]+/);
+
+  return entries
+    .map(value => parseShiftTime(value))
+    .filter(Boolean);
+};
+
+// Use the main availability field, or fall back to the
+// structured availability data if the main field is empty.
+const getUsableAvailability = (mainValue, fallbackValue) => {
+  const mainText = Array.isArray(mainValue)
+    ? mainValue.join(', ')
+    : String(mainValue || '').trim();
+
+  const isPlaceholder =
+    !mainText || /^(not specified|n\/?a|none)$/i.test(mainText);
+
+  return isPlaceholder ? (fallbackValue || []) : mainValue;
+};
+
+// Check whether a shift has capacity for this sevak.
+const canAutoAllocateToShift = (shift, sevak) => {
+  const assignedIds = shift.assignedVolunteers || [];
+
+  if (assignedIds.includes(sevak.id)) return false;
+
+  const hasGenderBreakdown =
+    shift.requiredGents !== null &&
+    shift.requiredGents !== undefined &&
+    shift.requiredMahila !== null &&
+    shift.requiredMahila !== undefined;
+
+  if (hasGenderBreakdown) {
+    const group = getSevakGroup(sevak);
+
+    if (group === 'unknown') return false;
+
+    const assignedSevaks = assignedIds
+      .map(id => submissions.find(item => item.id === id))
+      .filter(Boolean);
+
+    if (group === 'gents') {
+      const assignedGents = assignedSevaks.filter(
+        item => getSevakGroup(item) === 'gents'
+      ).length;
+
+      return assignedGents < Math.max(
+        0,
+        Number(shift.requiredGents) || 0
+      );
+    }
+
+    const assignedMahila = assignedSevaks.filter(
+      item => getSevakGroup(item) === 'mahila'
+    ).length;
+
+    return assignedMahila < Math.max(
+      0,
+      Number(shift.requiredMahila) || 0
+    );
+  }
+
+  return assignedIds.length <
+    Math.max(0, Number(shift.requiredVolunteers) || 0);
+};
+
+// Prevent a sevak from being allocated to overlapping shifts
+// on the same day.
+const autoAllocationHasTimeConflict = (
+  sevakId,
+  day,
+  candidateTime,
+  draftShifts
+) => {
+  const existingShifts = draftShifts.filter(shift =>
+    shift.day === day &&
+    (shift.assignedVolunteers || []).includes(sevakId)
+  );
+
+  return existingShifts.some(shift => {
+    const existingTime = parseShiftTime(shift.timeSlot);
+
+    // If an existing shift has an unreadable time, play safe.
+    if (!existingTime) return true;
+
+    return candidateTime.start < existingTime.end &&
+      candidateTime.end > existingTime.start;
+  });
+};
+
+  
+// Build a proposed rota for every sevak.
+// This only creates a preview. It does NOT save anything.
+const buildAutoAllocationPreview = () => {
+  // Work with copies so the existing rota is not changed.
+  const draftShifts = shifts.map(shift => ({
+    ...shift,
+    assignedVolunteers: [...(shift.assignedVolunteers || [])]
+  }));
+
+  const allocations = [];
+  const unmatched = [];
+
+  // These are the ONLY types of allocation permitted.
+  const allocationTasks = [
+    {
+      day: 'diwali',
+      label: 'Diwali',
+      getAvailability: sevak =>
+        getUsableAvailability(
+          sevak.diwaliTime,
+          sevak.availability?.diwali
+        ),
+      getDepartment: sevak =>
+        sevak.primaryPreferredSeva ||
+        sevak.preferredDepartments?.[0] ||
+        ''
+    },
+    {
+      day: 'setup_windup',
+      label: 'Annakut Setup (Monday)',
+      department: 'Annakut Setup/Windup',
+      getAvailability: sevak =>
+        getUsableAvailability(
+          sevak.setupMondayTime,
+          sevak.availability?.setup_windup
+        )
+    },
+    {
+      day: 'annakut',
+      label: 'Annakut',
+      getAvailability: sevak =>
+        getUsableAvailability(
+          sevak.annakutTime,
+          sevak.availability?.annakut
+        ),
+      getDepartment: sevak =>
+        sevak.primaryPreferredSeva ||
+        sevak.preferredDepartments?.[0] ||
+        ''
+    },
+    {
+      day: 'annakut',
+      label: 'Annakut Windup (Tuesday)',
+      department: 'Annakut Setup/Windup',
+      getAvailability: sevak =>
+        getUsableAvailability(
+          sevak.windupTuesdayTime,
+          []
+        )
+    }
+  ];
+
+  submissions.forEach(sevak => {
+    allocationTasks.forEach(task => {
+      const rawDepartment = task.getDepartment
+        ? String(task.getDepartment(sevak) || '').trim()
+        : task.department;
+
+      const preferredDepartment =
+        /^(not specified|n\/?a|none)$/i.test(rawDepartment)
+          ? ''
+          : rawDepartment;
+
+      const isCreche =
+        /crèche|creche/i.test(preferredDepartment);
+
+      const ranges = getAvailabilityRanges(
+        task.getAvailability(sevak)
+      );
+
+      // Nothing to allocate if the sevak has no recorded availability.
+      if (!ranges.length) return;
+
+      // Never automatically allocate Crèche.
+      if (!preferredDepartment || isCreche) {
+        unmatched.push({
+          sevakName: sevak.fullName,
+          task: task.label,
+          reason: isCreche
+            ? 'Crèche is excluded from automatic allocation.'
+            : 'No primary preferred seva is recorded.'
+        });
+        return;
+      }
+
+      ranges.forEach(availableTime => {
+        // Only consider shifts in the correct department and on
+        // the correct day, with remaining capacity.
+        const eligibleShifts = draftShifts.filter(shift => {
+          const department = String(
+            shift.department || ''
+          ).toLowerCase();
+
+          if (
+            department.includes('creche') ||
+            department.includes('crèche')
+          ) return false;
+
+          if (shift.day !== task.day) return false;
+
+          if (shift.department !== preferredDepartment) {
+            return false;
+          }
+
+          if (!canAutoAllocateToShift(shift, sevak)) {
+            return false;
+          }
+
+          const shiftTime = parseShiftTime(shift.timeSlot);
+
+          if (!shiftTime) return false;
+
+          if (
+            autoAllocationHasTimeConflict(
+              sevak.id,
+              task.day,
+              shiftTime,
+              draftShifts
+            )
+          ) return false;
+
+          return true;
+        });
+
+        if (!eligibleShifts.length) {
+          unmatched.push({
+            sevakName: sevak.fullName,
+            task: task.label,
+            reason:
+              `No available ${preferredDepartment} shift with capacity for ${task.label}.`
+          });
+          return;
+        }
+
+        // Rank shifts by how well they match the availability.
+        // Greatest overlap wins. If there is no overlap, choose
+        // the shift with the smallest time gap.
+        const rankedShifts = eligibleShifts.map(shift => {
+          const shiftTime = parseShiftTime(shift.timeSlot);
+
+          const overlap = Math.max(
+            0,
+            Math.min(
+              availableTime.end,
+              shiftTime.end
+            ) -
+            Math.max(
+              availableTime.start,
+              shiftTime.start
+            )
+          );
+
+          const gap = overlap > 0
+            ? 0
+            : Math.max(
+                shiftTime.start - availableTime.end,
+                availableTime.start - shiftTime.end,
+                0
+              );
+
+          return {
+            shift,
+            shiftTime,
+            overlap,
+            gap
+          };
+        }).sort((a, b) => {
+          if (a.overlap !== b.overlap) {
+            return b.overlap - a.overlap;
+          }
+
+          if (a.gap !== b.gap) {
+            return a.gap - b.gap;
+          }
+
+          return a.shiftTime.start - b.shiftTime.start;
+        });
+
+        // Select the best matching shift.
+        const chosen = rankedShifts[0];
+
+        // Update only our temporary copy so later proposed
+        // allocations also respect capacity and time conflicts.
+        chosen.shift.assignedVolunteers = [
+          ...(chosen.shift.assignedVolunteers || []),
+          sevak.id
+        ];
+
+        allocations.push({
+          submissionId: sevak.id,
+          sevakName: sevak.fullName,
+          shiftId: chosen.shift.id,
+          department: chosen.shift.department,
+          day: chosen.shift.day,
+          timeSlot: chosen.shift.timeSlot,
+          task: task.label,
+          availability:
+            `${formatTimelineTime(availableTime.start)}–${formatTimelineTime(availableTime.end)}`,
+          matchType: chosen.overlap > 0
+            ? 'Overlapping time'
+            : 'Closest available shift'
+        });
+      });
+    });
+  });
+
+  return {
+    allocations,
+    unmatched
+  };
+};
+
+// Generate the preview when the admin clicks the button.
+
+const handleBuildAutoAllocationPreview = async () => {
+  if (isApplyingAutoAllocation) return;
+
+  // Generate the allocations.
+  const preview = buildAutoAllocationPreview();
+
+  // Keep the result temporarily while it is being saved.
+  setAutoAllocationPreview(preview);
+
+  if (preview.allocations.length === 0) {
+    alert('No suitable rota allocations could be made. Please check the availability and shift capacities.');
+    return;
+  }
+
+  // Automatically save everything without asking for confirmation.
+  await handleConfirmAutoAllocation(preview);
+};
+
+
+  
+// Save only the allocations the admin has reviewed and confirmed.
+
+const handleConfirmAutoAllocation = async (
+  previewToSave = autoAllocationPreview
+) => {
+  if (
+    !previewToSave?.allocations?.length ||
+    isApplyingAutoAllocation
+  ) return;
+
+  setIsApplyingAutoAllocation(true);
+
+  const failedAllocations = [];
+
+  try {
+    for (const allocation of previewToSave.allocations) {
+      try {
+        const { data, error } = await supabase.rpc(
+          'admin_assign_volunteer',
+          {
+            input_admin_sid: loggedInSevak.sid,
+            input_submission_id: allocation.submissionId,
+            input_shift_id: allocation.shiftId
+          }
+        );
+
+        if (error) throw error;
+
+        if (!data?.success) {
+          throw new Error(data?.message || 'Allocation failed');
+        }
+      } catch (error) {
+        console.error(
+          'Automatic allocation failed:',
+          allocation,
+          error
+        );
+
+        failedAllocations.push(allocation);
+      }
+    }
+
+    await loadAdminData(loggedInSevak.sid);
+    setAutoAllocationPreview(null);
+
+    if (failedAllocations.length > 0) {
+      alert(
+        `${previewToSave.allocations.length - failedAllocations.length} allocations saved. ` +
+        `${failedAllocations.length} could not be saved. Your rota has been refreshed.`
+      );
+    } else {
+      alert(
+        `${previewToSave.allocations.length} rota allocations saved successfully!`
+      );
+    }
+  } finally {
+    setIsApplyingAutoAllocation(false);
+  }
+};
+
+
+
+  
+
   
   // Convert minutes after midnight back into a neat label.
   const formatTimelineTime = (minutes) => {
@@ -2769,9 +3178,20 @@ const handleProcessExcelData = async (textInput) => {
                 </select>
               </div>
 
-              <div className="text-xs font-bold text-slate-500 self-end sm:self-center">
-                {filteredSubmissions.length} Volunteers
-              </div>
+              
+<div className="flex flex-col sm:flex-row items-stretch sm: items-centre gap-3">
+  <button
+    onClick={handleBuildAutoAllocationPreview}
+    className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] border border-[#D4A017]/60 shadow-md hover:shadow-lg transition-all"
+  >
+    ✨ Auto-Allocate & Save Rota
+  </button>
+
+  <div className="text-xs font-bold text-slate-500 self-center">
+    {filteredSubmissions.length} Volunteers
+  </div>
+</div>
+
             </div>
 
             {/* Volunteer Cards */}
