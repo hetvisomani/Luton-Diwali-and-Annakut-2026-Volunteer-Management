@@ -2073,40 +2073,6 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
     };
   }, [shifts, submissions]);
 
-   const filteredMasterShifts = useMemo(() => {
-    return shifts.filter(s => {
-      const matchesDept =
-  selectedDeptFilters.length === 0 ||
-  selectedDeptFilters.includes(s.department);
-      const matchesDay = selectedDayFilter === 'ALL' || s.day === selectedDayFilter;
-
-      const stats = getShiftGenderStats(s);
-
-      const isOverstaffed = stats.hasGenderBreakdown
-        ? stats.assignedGents > stats.requiredGents ||
-          stats.assignedMahila > stats.requiredMahila
-        : stats.assignedTotal > stats.requiredTotal;
-
-      let matchesStaffing = true;
-
-      if (staffingFilter === 'VACANT') {
-        matchesStaffing = stats.assignedTotal === 0;
-      } else if (staffingFilter === 'UNDERSTAFFED') {
-        matchesStaffing =
-          stats.assignedTotal > 0 &&
-          !stats.isFull &&
-          !isOverstaffed;
-      } else if (staffingFilter === 'FULL') {
-        matchesStaffing = stats.isFull && !isOverstaffed;
-      } else if (staffingFilter === 'OVERSTAFFED') {
-        matchesStaffing = isOverstaffed;
-      }
-
-      return matchesDept && matchesDay && matchesStaffing;
-    });
-  },
-                                        [shifts, submissions, selectedDeptFilters, selectedDayFilter, staffingFilter]
-                                       );
 
   const filteredSubmissions = useMemo(() => {
     return submissions.filter(sub => {
@@ -2244,6 +2210,41 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
       isFull
     };
   };
+
+   const filteredMasterShifts = useMemo(() => {
+    return shifts.filter(s => {
+      const matchesDept =
+  selectedDeptFilters.length === 0 ||
+  selectedDeptFilters.includes(s.department);
+      const matchesDay = selectedDayFilter === 'ALL' || s.day === selectedDayFilter;
+
+      const stats = getShiftGenderStats(s);
+
+      const isOverstaffed = stats.hasGenderBreakdown
+        ? stats.assignedGents > stats.requiredGents ||
+          stats.assignedMahila > stats.requiredMahila
+        : stats.assignedTotal > stats.requiredTotal;
+
+      let matchesStaffing = true;
+
+      if (staffingFilter === 'VACANT') {
+        matchesStaffing = stats.assignedTotal === 0;
+      } else if (staffingFilter === 'UNDERSTAFFED') {
+        matchesStaffing =
+          stats.assignedTotal > 0 &&
+          !stats.isFull &&
+          !isOverstaffed;
+      } else if (staffingFilter === 'FULL') {
+        matchesStaffing = stats.isFull && !isOverstaffed;
+      } else if (staffingFilter === 'OVERSTAFFED') {
+        matchesStaffing = isOverstaffed;
+      }
+
+      return matchesDept && matchesDay && matchesStaffing;
+    });
+  },
+                                        [shifts, submissions, selectedDeptFilters, selectedDayFilter, staffingFilter]
+                                       );
   // DYNAMIC RAG CALENDAR HELPERS
   // ---------------------------------------------------------
   // Convert a single written time such as:
