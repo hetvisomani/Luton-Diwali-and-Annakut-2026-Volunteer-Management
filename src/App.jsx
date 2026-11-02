@@ -391,6 +391,12 @@ export default function App() {
   const [loggedInSevak, setLoggedInSevak] = useState(null);
   const [portalMessage, setPortalMessage] = useState('');
 
+  // Admin password authentication state
+const [pendingAdminSid, setPendingAdminSid] = useState('');
+const [adminPassword, setAdminPassword] = useState('');
+const [adminSessionToken, setAdminSessionToken] = useState('');
+const [showAdminPassword, setShowAdminPassword] = useState(false);
+
   // Check if active user is Admin
   const isAdminLoggedIn = loggedInSevak?.isAdmin === true;
 
@@ -1379,47 +1385,15 @@ const handleProcessExcelData = async (textInput) => {
       return;
     }
 
-    // ADMIN LOGIN
-    if (loginData.is_admin) {
-      const { data: adminData, error: adminError } = await supabase.rpc(
-        'get_admin_data',
-        {
-          input_sid: cleanInput
-        }
-      );
-
-      if (adminError) throw adminError;
-
-      if (!adminData?.success) {
-        throw new Error(
-          adminData?.message || 'Admin data could not be loaded'
-        );
-      }
-
-      const loadedSubmissions = (adminData.submissions || []).map(
-        submissionFromDb
-      );
-
-      const loadedShifts = (adminData.shifts || []).map(
-        shiftFromDb
-      );
-
-      setSubmissions(loadedSubmissions);
-      setShifts(loadedShifts);
-
-      const adminSevak = loadedSubmissions.find(
-        sub => sub.id === loginData.sevak_id
-      );
-
-      if (!adminSevak) {
-        throw new Error('Admin sevak record could not be loaded');
-      }
-
-      setLoggedInSevak({
-        ...adminSevak,
-        isAdmin: true
-      });
-    }
+   // ADMIN LOGIN - ask for password before loading admin data
+if (loginData.is_admin) {
+  setPendingAdminSid(cleanInput);
+  setPortalSidInput('');
+  setAdminPassword('');
+  setPortalMessage('');
+  setShowAdminPassword(false);
+  return;
+}
 
     // NORMAL SEVAK LOGIN
     else {
@@ -1461,6 +1435,98 @@ const handleProcessExcelData = async (textInput) => {
     setPortalMessage(
       'Unable to log in right now. Please try again.'
     );
+  }
+};
+
+  const handleAdminPasswordLogin = async (e) => {
+  e.preventDefault();
+
+  if (!pendingAdminSid || !adminPassword.trim()) {
+    setPortalMessage('Please enter the admin password.');
+    return;
+  }
+
+  try {
+    setPortalMessage('');
+
+    // Verify the shared admin password and create a session
+    const { data: authData, error: authError } = await supabase.rpc(
+      'admin_login',
+      {
+        input_admin_sid: pendingAdminSid,
+        input_password: adminPassword
+      }
+    );
+
+    if (authError) throw authError;
+
+    if (!authData?.success || !authData?.token) {
+      setPortalMessage('Incorrect admin password. Please try again.');
+      setAdminPassword('');
+      return;
+    }
+
+    const token = authData.token;
+
+    // Load admin data using the new session token
+    const { data: adminData, error: adminError } = await supabase.rpc(
+      'get_admin_data',
+      {
+        input_sid: pendingAdminSid,
+        input_token: token
+      }
+    );
+
+    if (adminError) throw adminError;
+
+    if (!adminData?.success) {
+      throw new Error('Admin data could not be loaded.');
+    }
+
+    const loadedSubmissions = (adminData.submissions || []).map(
+      submissionFromDb
+    );
+
+    const loadedShifts = (adminData.shifts || []).map(
+      shiftFromDb
+    );
+
+    // Find the admin's own sevak record
+    const { data: loginData, error: loginError } = await supabase.rpc(
+      'check_sid_login',
+      {
+        input_sid: pendingAdminSid
+      }
+    );
+
+    if (loginError) throw loginError;
+
+    const adminSevak = loadedSubmissions.find(
+      sub => sub.id === loginData?.sevak_id
+    );
+
+    if (!adminSevak) {
+      throw new Error('Admin sevak record could not be loaded.');
+    }
+
+    setSubmissions(loadedSubmissions);
+    setShifts(loadedShifts);
+    setAdminSessionToken(token);
+
+    setLoggedInSevak({
+      ...adminSevak,
+      isAdmin: true
+    });
+
+    setPendingAdminSid('');
+    setAdminPassword('');
+    setPortalMessage('');
+    setShowAdminPassword(false);
+    setActiveTab('portal');
+
+  } catch (error) {
+    console.error('Admin password login error:', error);
+    setPortalMessage('Unable to authorise admin access. Please try again.');
   }
 };
 
@@ -3035,34 +3101,91 @@ const handleConfirmAutoAllocation = async (
             </p>
           </div>
 
-          <form onSubmit={handlePortalLogin} className="space-y-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="enter your SID"
-                value={portalSidInput}
-                onChange={e => setPortalSidInput(e.target.value)}
-                className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
-                  darkMode
-                    ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500'
-                    : 'bg-[#fffcf7] border-[#d6b36a]/50 text-slate-900 focus:border-[#8f234d] focus:ring-2 focus:ring-[#8f234d]/10'
-                }`}
-              />
-            </div>
+          {pendingAdminSid ? (
+  <form onSubmit={handleAdminPasswordLogin} className="space-y-4">
+    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+      Admin SID: <span className="font-mono">{pendingAdminSid}</span>
+    </p>
 
-            {portalMessage && (
-              <p className="text-xs font-bold text-rose-500">
-                {portalMessage}
-              </p>
-            )}
+    <div className="relative">
+      <input
+        type={showAdminPassword ? 'text' : 'password'}
+        placeholder="Enter shared admin password"
+        value={adminPassword}
+        onChange={e => setAdminPassword(e.target.value)}
+        autoComplete="current-password"
+        className={`w-full px-4 py-3.5 rounded-2xl text-center font-bold text-base border outline-none transition-all ${
+          darkMode
+            ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500'
+            : 'bg-[#fffcf7] border-[#d6b36a]/50 text-slate-900 focus:border-[#8f234d] focus:ring-2 focus:ring-[#8f234d]/10'
+        }`}
+      />
+    </div>
 
-            <button
-              type="submit"
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#65163b]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 ring-1 ring-[#d6b36a]/30"
-            >
-              View My Rota Schedule
-            </button>
-          </form>
+    <button
+      type="button"
+      onClick={() => setShowAdminPassword(!showAdminPassword)}
+      className="text-xs font-semibold text-slate-500 hover:text-[#8B1E2D]"
+    >
+      {showAdminPassword ? 'Hide password' : 'Show password'}
+    </button>
+
+    {portalMessage && (
+      <p className="text-xs font-bold text-rose-500">
+        {portalMessage}
+      </p>
+    )}
+
+    <button
+      type="submit"
+      className="w-full py-3.5 px-4 bg-gradient-to-r from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg"
+    >
+      Unlock Admin Portal
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        setPendingAdminSid('');
+        setAdminPassword('');
+        setPortalMessage('');
+        setShowAdminPassword(false);
+      }}
+      className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-[#8B1E2D]"
+    >
+      Back to SID login
+    </button>
+  </form>
+) : (
+  <form onSubmit={handlePortalLogin} className="space-y-4">
+    <div className="relative">
+      <input
+        type="text"
+        placeholder="enter your SID"
+        value={portalSidInput}
+        onChange={e => setPortalSidInput(e.target.value)}
+        className={`w-full px-4 py-3.5 rounded-2xl text-center font-mono font-bold text-base border outline-none transition-all ${
+          darkMode
+            ? 'bg-slate-800 border-slate-700 text-white focus:border-amber-500'
+            : 'bg-[#fffcf7] border-[#d6b36a]/50 text-slate-900 focus:border-[#8f234d] focus:ring-2 focus:ring-[#8f234d]/10'
+        }`}
+      />
+    </div>
+
+    {portalMessage && (
+      <p className="text-xs font-bold text-rose-500">
+        {portalMessage}
+      </p>
+    )}
+
+    <button
+      type="submit"
+      className="w-full py-3.5 px-4 bg-gradient-to-r from-[#4A0E16] via-[#6E1423] to-[#8B1E2D] text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-[#65163b]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 ring-1 ring-[#d6b36a]/30"
+    >
+      View My Rota Schedule
+    </button>
+  </form>
+)}
         </div>
       </>
     ) : (
