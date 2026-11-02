@@ -2836,25 +2836,47 @@ const handleConfirmAutoAllocation = async (
     return shifts
       .filter(shift => {
         const matchesDay = shift.day === rotaMatrixDay;
-        const matchesDepartment =
-          rotaMatrixDeptFilter === 'ALL' ||
-          shift.department === rotaMatrixDeptFilter;
+       const matchesDepartment =
+  selectedDeptFilters.length === 0 ||
+  selectedDeptFilters.includes(shift.department);
 
-        return matchesDay && matchesDepartment;
-      })
-      .map(shift => ({
-        ...shift,
-        parsedTime: parseShiftTime(shift.timeSlot)
-      }))
-      .sort((a, b) => {
-        if (a.department !== b.department) {
-          return a.department.localeCompare(b.department);
-        }
+const stats = getShiftGenderStats(shift);
 
-        return (a.parsedTime?.start ?? 99999) -
-               (b.parsedTime?.start ?? 99999);
-      });
-  }, [shifts, rotaMatrixDay, rotaMatrixDeptFilter]);
+const isOverstaffed = stats.hasGenderBreakdown
+  ? stats.assignedGents > stats.requiredGents ||
+    stats.assignedMahila > stats.requiredMahila
+  : stats.assignedTotal > stats.requiredTotal;
+
+let matchesStaffing = true;
+
+if (staffingFilter === 'VACANT') {
+  matchesStaffing = stats.assignedTotal === 0;
+} else if (staffingFilter === 'UNDERSTAFFED') {
+  matchesStaffing =
+    stats.assignedTotal > 0 &&
+    !stats.isFull &&
+    !isOverstaffed;
+} else if (staffingFilter === 'FULL') {
+  matchesStaffing = stats.isFull && !isOverstaffed;
+} else if (staffingFilter === 'OVERSTAFFED') {
+  matchesStaffing = isOverstaffed;
+}
+
+return matchesDay && matchesDepartment && matchesStaffing;
+})
+.map(shift => ({
+  ...shift,
+  parsedTime: parseShiftTime(shift.timeSlot)
+}))
+.sort((a, b) => {
+  if (a.department !== b.department) {
+    return a.department.localeCompare(b.department);
+  }
+
+  return (a.parsedTime?.start ?? 99999) -
+         (b.parsedTime?.start ?? 99999);
+});
+}, [shifts, submissions, rotaMatrixDay, selectedDeptFilters, staffingFilter]);
 
   // Departments that have shifts on the selected day
   const rotaMatrixDepartments = useMemo(() => {
@@ -3840,23 +3862,76 @@ const handleConfirmAutoAllocation = async (
                   <label className="block text-xs font-bold mb-1 text-slate-500">
                     FILTER DEPARTMENT
                   </label>
+                 <details className="relative">
+  <summary
+    className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold border cursor-pointer list-none ${
+      darkMode
+        ? 'bg-slate-800 border-slate-700 text-white'
+        : 'bg-slate-50 border-amber-200 text-slate-800'
+    }`}
+  >
+    {selectedDeptFilters.length === 0
+      ? 'All Departments'
+      : `${selectedDeptFilters.length} Departments Selected`}
+    <span className="float-right">▾</span>
+  </summary>
+
+  <div
+    className={`absolute left-0 top-full mt-2 z-50 w-full max-h-64 overflow-y-auto rounded-xl border shadow-xl p-3 space-y-2 ${
+      darkMode
+        ? 'bg-slate-900 border-slate-700 text-white'
+        : 'bg-white border-amber-200 text-slate-800'
+    }`}
+  >
+    <button
+      type="button"
+      onClick={() => setSelectedDeptFilters([])}
+      className="text-xs font-bold text-amber-600 hover:underline"
+    >
+      Clear selection (show all)
+    </button>
+
+    {DEPARTMENTS.map(dept => (
+      <label key={dept} className="flex items-center gap-2 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={selectedDeptFilters.includes(dept)}
+          onChange={e => {
+            setSelectedDeptFilters(current =>
+              e.target.checked
+                ? [...current, dept]
+                : current.filter(d => d !== dept)
+            );
+          }}
+        />
+        {dept}
+      </label>
+    ))}
+  </div>
+</details>
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-xs font-bold mb-1 text-slate-500">
+                    FILTER STAFFING
+                  </label>
                   <select
-                    value={rotaMatrixDeptFilter}
-                    onChange={e => setRotaMatrixDeptFilter(e.target.value)}
+                    value={staffingFilter}
+                    onChange={e => setStaffingFilter(e.target.value)}
                     className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold border ${
                       darkMode
                         ? 'bg-slate-800 border-slate-700 text-white'
                         : 'bg-slate-50 border-amber-200 text-slate-800'
                     }`}
                   >
-                    <option value="ALL">All Departments</option>
-                    {DEPARTMENTS.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
+                    <option value="ALL">All Staffing Levels</option>
+                    <option value="VACANT">Vacant</option>
+                    <option value="UNDERSTAFFED">Understaffed</option>
+                    <option value="FULL">Fully Staffed</option>
+                    <option value="OVERSTAFFED">Overstaffed</option>
                   </select>
-                               </div>
+                </div>
               </div>
-
               <div className="flex justify-end mt-3">
                 <button
                   onClick={() => setShowAddShiftModal(true)}
