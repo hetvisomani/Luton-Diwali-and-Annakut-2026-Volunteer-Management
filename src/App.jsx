@@ -3884,13 +3884,126 @@ const handleConfirmAutoAllocation = async (
                         {departmentShifts.map(shift => {
                           const stats = getShiftGenderStats(shift);
                           const assignedNames = (shift.assignedVolunteers || [])
-                            .map(id => submissions.find(sub => sub.id === id))
-                            .filter(Boolean);
+  .map(id => submissions.find(sub => sub.id === id))
+  .filter(Boolean);
+
+const assignedGents = assignedNames.filter(
+  sub => getSevakGroup(sub) === 'gents'
+);
+
+const assignedMahila = assignedNames.filter(
+  sub => getSevakGroup(sub) === 'mahila'
+);
+
+const assignedUnknown = assignedNames.filter(
+  sub => getSevakGroup(sub) === 'unknown'
+);
+                      const renderAssignedVolunteer = (sub) => {
+  const volunteerWorkingTime =
+    shift.assignedVolunteerTimes?.[sub.id];
+
+  const rotaTime = parseShiftTime(shift.timeSlot);
+
+  const hasDifferentWorkingTime =
+    volunteerWorkingTime &&
+    rotaTime &&
+    (
+      volunteerWorkingTime.start !== rotaTime.start ||
+      volunteerWorkingTime.end !== rotaTime.end
+    );
+
+  const checkedIn = shift.checkedInVolunteers?.[sub.id];
+
+  return (
+    <div
+      key={sub.id}
+      className={`flex flex-col gap-2 text-xs px-2 py-2 rounded-lg ${
+        shift.leadVolunteerId === sub.id
+          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold'
+          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate">
+          {shift.leadVolunteerId === sub.id && (
+            <Crown className="w-3 h-3 inline mr-1 text-amber-500" />
+          )}
+          {sub.fullName}
+        </span>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => toggleLeadVolunteer(shift.id, sub.id)}
+            title="Make/remove team leader"
+            className={`p-1 rounded ${
+              shift.leadVolunteerId === sub.id
+                ? 'text-amber-600'
+                : 'text-slate-400 hover:text-amber-500'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => unassignVolunteerFromShift(sub.id, shift.id)}
+            title="Remove volunteer"
+            className="p-1 text-slate-400 hover:text-rose-500"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {hasDifferentWorkingTime && (
+        <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+          <Clock className="w-3 h-3 inline mr-1" />
+          {formatTimelineTime(volunteerWorkingTime.start)}
+          {' – '}
+          {formatTimelineTime(volunteerWorkingTime.end)}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        {checkedIn ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              ✓ Checked in
+              {checkedIn.checked_in_at && (
+                <span className="ml-1 font-medium">
+                  {new Date(checkedIn.checked_in_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              )}
+            </span>
+
+            <button
+              onClick={() => handleUndoCheckInVolunteer(sub.id, shift.id)}
+              title="Undo check-in"
+              className="text-[10px] font-semibold text-rose-500 hover:text-rose-700 underline"
+            >
+              Undo
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => handleCheckInVolunteer(sub.id, shift.id)}
+            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold"
+          >
+            Check in
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+                      
 
                           return (
                             <div
                               key={shift.id}
-                              className={`flex-shrink-0 w-64 sm:w-72 rounded-xl border p-3 ${
+                              className={`flex-shrink-0 w-[32rem] sm:w-[36rem] rounded-xl border p-3 ${
                                 stats.isFull
                                   ? 'border-emerald-500/40 bg-emerald-500/5'
                                   : 'border-rose-500/40 bg-rose-500/5'
@@ -3957,113 +4070,64 @@ const handleConfirmAutoAllocation = async (
                                   </p>
                                 )}
 
-                                <div className="mt-3 space-y-1.5">
-                                  {assignedNames.length === 0 ? (
-                                    <p className="text-xs italic text-slate-400">
-                                      No volunteers assigned
-                                    </p>
-                                  ) : (
-                                   assignedNames.map(sub => {
-  const volunteerWorkingTime =
-    shift.assignedVolunteerTimes?.[sub.id];
+                                <div className="mt-3">
+  {assignedNames.length === 0 ? (
+    <p className="text-xs italic text-slate-400">
+      No volunteers assigned
+    </p>
+  ) : (
+    <div className="grid grid-cols-2 gap-2">
 
-  const rotaTime = parseShiftTime(shift.timeSlot);
+      {/* GENTS COLUMN */}
+      <div className="min-w-0">
+        <div className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300 mb-2 pb-1 border-b border-blue-200 dark:border-blue-800">
+          Gents ({assignedGents.length})
+        </div>
 
-  const hasDifferentWorkingTime =
-    volunteerWorkingTime &&
-    rotaTime &&
-    (
-      volunteerWorkingTime.start !== rotaTime.start ||
-      volunteerWorkingTime.end !== rotaTime.end
-    );
-
-  const checkedIn = shift.checkedInVolunteers?.[sub.id];
-
-  return (
-    <div
-      key={sub.id}
-      className={`flex flex-col gap-2 text-xs px-2 py-2 rounded-lg ${
-        shift.leadVolunteerId === sub.id
-          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold'
-          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate">
-          {shift.leadVolunteerId === sub.id && (
-            <Crown className="w-3 h-3 inline mr-1 text-amber-500" />
+        <div className="space-y-1.5">
+          {assignedGents.length === 0 ? (
+            <p className="text-[10px] italic text-slate-400">
+              None assigned
+            </p>
+          ) : (
+            assignedGents.map(renderAssignedVolunteer)
           )}
-          {sub.fullName}
-        </span>
-
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-           onClick={() => toggleLeadVolunteer(shift.id, sub.id)}
-            className={`p-1 rounded ${
-              shift.leadVolunteerId === sub.id
-                ? 'text-amber-600'
-                : 'text-slate-400 hover:text-amber-500'
-            }`}
-          >
-            <Crown className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={() => unassignVolunteerFromShift(sub.id, shift.id)}
-            title="Remove volunteer"
-            className="p-1 text-slate-400 hover:text-rose-500"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
 
-      {hasDifferentWorkingTime && (
-       <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-  <Clock className="w-3 h-3 inline mr-1" />
-  {formatTimelineTime(volunteerWorkingTime.start)}
-  {' – '}
-  {formatTimelineTime(volunteerWorkingTime.end)}
-</p>
+      {/* MAHILA COLUMN */}
+      <div className="min-w-0">
+        <div className="text-[10px] font-black uppercase tracking-wider text-pink-700 dark:text-pink-300 mb-2 pb-1 border-b border-pink-200 dark:border-pink-800">
+          Mahila ({assignedMahila.length})
+        </div>
+
+        <div className="space-y-1.5">
+          {assignedMahila.length === 0 ? (
+            <p className="text-[10px] italic text-slate-400">
+              None assigned
+            </p>
+          ) : (
+            assignedMahila.map(renderAssignedVolunteer)
+          )}
+        </div>
+      </div>
+
+      {/* UNCLASSIFIED VOLUNTEERS */}
+      {assignedUnknown.length > 0 && (
+        <div className="col-span-2 mt-2">
+          <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2 pb-1 border-b border-slate-200 dark:border-slate-700">
+            Unclassified ({assignedUnknown.length})
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {assignedUnknown.map(renderAssignedVolunteer)}
+          </div>
+        </div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
-        {checkedIn ? (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-              ✓ Checked in
-              {checkedIn.checked_in_at && (
-                <span className="ml-1 font-medium">
-                  {new Date(checkedIn.checked_in_at).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              )}
-            </span>
-
-            <button
-              onClick={() => handleUndoCheckInVolunteer(sub.id, shift.id)}
-              title="Undo check-in"
-              className="text-[10px] font-semibold text-rose-500 hover:text-rose-700 underline"
-            >
-              Undo
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => handleCheckInVolunteer(sub.id, shift.id)}
-            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold"
-          >
-            Check in
-          </button>
-        )}
-      </div>
     </div>
-  );
-})
-                                  )}
-                                                               </div>
+  )}
+                                </div>
 
                                 {/* ADD VOLUNTEER */}
                                 <div className="pt-2">
