@@ -26,7 +26,8 @@ import {
   FileText,
   Check,
   Filter,
-  Baby
+    Baby,
+  Grid3X3
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -609,9 +610,14 @@ const loadData = async () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [allocationFilter, setAllocationFilter] = useState('ALL');
   const [selectedAllocationDays, setSelectedAllocationDays] = useState({});
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
-  const [selectedDayFilter, setSelectedDayFilter] = useState('ALL')
-    const [ragDeptFilter, setRagDeptFilter] = useState('ALL');
+    const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
+  const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
+
+  // Rota Matrix filters
+  const [rotaMatrixDay, setRotaMatrixDay] = useState(DAYS[0].id);
+  const [rotaMatrixDeptFilter, setRotaMatrixDeptFilter] = useState('ALL');
+
+  const [ragDeptFilter, setRagDeptFilter] = useState('ALL');
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(DAYS[0].id);
   // Dynamic RAG calendar controls
   const [ragGapsOnly, setRagGapsOnly] = useState(false);
@@ -2794,6 +2800,36 @@ const handleConfirmAutoAllocation = async (
   const ragDepartments = useMemo(() => {
     return [...new Set(ragDayShifts.map(shift => shift.department))];
   }, [ragDayShifts]);
+
+    // ROTA MATRIX: Existing saved shifts for the selected day
+  const rotaMatrixShifts = useMemo(() => {
+    return shifts
+      .filter(shift => {
+        const matchesDay = shift.day === rotaMatrixDay;
+        const matchesDepartment =
+          rotaMatrixDeptFilter === 'ALL' ||
+          shift.department === rotaMatrixDeptFilter;
+
+        return matchesDay && matchesDepartment;
+      })
+      .map(shift => ({
+        ...shift,
+        parsedTime: parseShiftTime(shift.timeSlot)
+      }))
+      .sort((a, b) => {
+        if (a.department !== b.department) {
+          return a.department.localeCompare(b.department);
+        }
+
+        return (a.parsedTime?.start ?? 99999) -
+               (b.parsedTime?.start ?? 99999);
+      });
+  }, [shifts, rotaMatrixDay, rotaMatrixDeptFilter]);
+
+  // Departments that have shifts on the selected day
+  const rotaMatrixDepartments = useMemo(() => {
+    return [...new Set(rotaMatrixShifts.map(shift => shift.department))];
+  }, [rotaMatrixShifts]);
   
   // Work out the earliest and latest REAL shift times for this day.
   // We add a small amount of space around the first/last shift.
@@ -3040,6 +3076,16 @@ const handleConfirmAutoAllocation = async (
   }
 >
   <Calendar className="w-4 h-4" /> Master Rota
+</button>
+<button
+  onClick={() => setActiveTab('rotaMatrix')}
+  className={
+    activeTab === 'rotaMatrix'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
+  }
+>
+  <Grid3X3 className="w-4 h-4" /> Rota Matrix
 </button>
 
 <button
@@ -3733,6 +3779,192 @@ const handleConfirmAutoAllocation = async (
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION: ROTA MATRIX */}
+        {isAdminLoggedIn && activeTab === 'rotaMatrix' && (
+          <div className="space-y-5">
+
+            {/* MATRIX FILTERS */}
+            <div className={`p-4 rounded-2xl border shadow-sm ${
+              darkMode
+                ? 'bg-slate-900 border-slate-800'
+                : 'bg-white border-amber-200'
+            }`}>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold mb-1 text-slate-500">
+                    SELECT DAY
+                  </label>
+                  <select
+                    value={rotaMatrixDay}
+                    onChange={e => setRotaMatrixDay(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold border ${
+                      darkMode
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-slate-50 border-amber-200 text-slate-800'
+                    }`}
+                  >
+                    {DAYS.map(day => (
+                      <option key={day.id} value={day.id}>
+                        {day.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-xs font-bold mb-1 text-slate-500">
+                    FILTER DEPARTMENT
+                  </label>
+                  <select
+                    value={rotaMatrixDeptFilter}
+                    onChange={e => setRotaMatrixDeptFilter(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold border ${
+                      darkMode
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-slate-50 border-amber-200 text-slate-800'
+                    }`}
+                  >
+                    <option value="ALL">All Departments</option>
+                    {DEPARTMENTS.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* MATRIX DEPARTMENT ROWS */}
+            <div className="space-y-4">
+              {rotaMatrixDepartments.length === 0 ? (
+                <div className={`p-8 text-center rounded-2xl border ${
+                  darkMode
+                    ? 'bg-slate-900 border-slate-800 text-slate-400'
+                    : 'bg-white border-amber-200 text-slate-500'
+                }`}>
+                  No shifts found for this day and department filter.
+                </div>
+              ) : (
+                rotaMatrixDepartments.map(dept => {
+                  const departmentShifts = rotaMatrixShifts.filter(
+                    shift => shift.department === dept
+                  );
+
+                  return (
+                    <div
+                      key={dept}
+                      className={`rounded-2xl border overflow-hidden shadow-sm ${
+                        darkMode
+                          ? 'bg-slate-900 border-slate-800'
+                          : 'bg-white border-amber-200'
+                      }`}
+                    >
+                      {/* DEPARTMENT HEADER */}
+                      <div className={`px-4 py-3 border-b ${
+                        darkMode
+                          ? 'bg-slate-800 border-slate-700'
+                          : 'bg-amber-50 border-amber-100'
+                      }`}>
+                        <h3 className={`font-bold text-sm ${
+                          darkMode ? 'text-amber-300' : 'text-amber-900'
+                        }`}>
+                          {dept}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {departmentShifts.length} shift
+                          {departmentShifts.length === 1 ? '' : 's'}
+                        </p>
+                      </div>
+
+                      {/* SHIFT BLOCKS */}
+                      <div className="p-3 flex gap-3 overflow-x-auto">
+                        {departmentShifts.map(shift => {
+                          const stats = getShiftGenderStats(shift);
+                          const assignedNames = (shift.assignedVolunteers || [])
+                            .map(id => submissions.find(sub => sub.id === id))
+                            .filter(Boolean);
+
+                          return (
+                            <div
+                              key={shift.id}
+                              className={`flex-shrink-0 w-64 sm:w-72 rounded-xl border p-3 ${
+                                stats.isFull
+                                  ? 'border-emerald-500/40 bg-emerald-500/5'
+                                  : 'border-rose-500/40 bg-rose-500/5'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <h4 className={`text-sm font-bold ${
+                                    darkMode ? 'text-white' : 'text-slate-900'
+                                  }`}>
+                                    {shift.title}
+                                  </h4>
+                                  <p className="text-xs font-bold text-amber-600 dark:text-amber-400 mt-1">
+                                    <Clock className="w-3 h-3 inline mr-1" />
+                                    {shift.timeSlot}
+                                  </p>
+                                </div>
+
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${
+                                  stats.isFull
+                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                                }`}>
+                                  {stats.isFull ? 'Filled' : 'Vacancies'}
+                                </span>
+                              </div>
+
+                              <div className={`mt-3 pt-3 border-t ${
+                                darkMode ? 'border-slate-700' : 'border-slate-200'
+                              }`}>
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                  Assigned: {stats.assignedTotal}/{stats.requiredTotal}
+                                </p>
+
+                                {stats.hasGenderBreakdown && (
+                                  <p className="text-[10px] text-slate-500 mt-1">
+                                    Gents: {stats.assignedGents}/{stats.requiredGents}
+                                    {' · '}
+                                    Mahila: {stats.assignedMahila}/{stats.requiredMahila}
+                                  </p>
+                                )}
+
+                                <div className="mt-3 space-y-1.5">
+                                  {assignedNames.length === 0 ? (
+                                    <p className="text-xs italic text-slate-400">
+                                      No volunteers assigned
+                                    </p>
+                                  ) : (
+                                    assignedNames.map(sub => (
+                                      <div
+                                        key={sub.id}
+                                        className={`text-xs px-2 py-1.5 rounded-lg ${
+                                          shift.leadVolunteerId === sub.id
+                                            ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 font-bold'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
+                                        }`}
+                                      >
+                                        {shift.leadVolunteerId === sub.id && (
+                                          <Crown className="w-3 h-3 inline mr-1 text-amber-500" />
+                                        )}
+                                        {sub.fullName}
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
