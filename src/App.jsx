@@ -3076,7 +3076,7 @@ const handleConfirmAutoAllocation = async (
       : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
   }
 >
-  <Grid3X3 className="w-4 h-4" /> Rota Matrix
+  <Calendar className="w-4 h-4" /> Master Rota
 </button>
 
 <button
