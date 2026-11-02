@@ -4019,12 +4019,12 @@ const handleConfirmAutoAllocation = async (
       </div>
 
       {hasDifferentWorkingTime && (
-        <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-          <Clock className="w-3 h-3 inline mr-1" />
-          Working: {formatTimelineTime(volunteerWorkingTime.start)}
-          {' – '}
-          {formatTimelineTime(volunteerWorkingTime.end)}
-        </p>
+       <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+  <Clock className="w-3 h-3 inline mr-1" />
+  {formatTimelineTime(volunteerWorkingTime.start)}
+  {' – '}
+  {formatTimelineTime(volunteerWorkingTime.end)}
+</p>
       )}
 
       <div className="flex items-center justify-between gap-2">
