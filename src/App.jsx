@@ -611,8 +611,9 @@ const loadData = async () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [allocationFilter, setAllocationFilter] = useState('ALL');
   const [selectedAllocationDays, setSelectedAllocationDays] = useState({});
-    const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
+   const [selectedDeptFilters, setSelectedDeptFilters] = useState([]);
   const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
+  const [staffingFilter, setStaffingFilter] = useState('ALL');
 
   // Rota Matrix filters
   const [rotaMatrixDay, setRotaMatrixDay] = useState(DAYS[0].id);
@@ -2072,13 +2073,40 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
     };
   }, [shifts, submissions]);
 
-  const filteredMasterShifts = useMemo(() => {
+   const filteredMasterShifts = useMemo(() => {
     return shifts.filter(s => {
-      const matchesDept = selectedDeptFilter === 'ALL' || s.department === selectedDeptFilter;
+      const matchesDept =
+  selectedDeptFilters.length === 0 ||
+  selectedDeptFilters.includes(s.department);
       const matchesDay = selectedDayFilter === 'ALL' || s.day === selectedDayFilter;
-      return matchesDept && matchesDay;
+
+      const stats = getShiftGenderStats(s);
+
+      const isOverstaffed = stats.hasGenderBreakdown
+        ? stats.assignedGents > stats.requiredGents ||
+          stats.assignedMahila > stats.requiredMahila
+        : stats.assignedTotal > stats.requiredTotal;
+
+      let matchesStaffing = true;
+
+      if (staffingFilter === 'VACANT') {
+        matchesStaffing = stats.assignedTotal === 0;
+      } else if (staffingFilter === 'UNDERSTAFFED') {
+        matchesStaffing =
+          stats.assignedTotal > 0 &&
+          !stats.isFull &&
+          !isOverstaffed;
+      } else if (staffingFilter === 'FULL') {
+        matchesStaffing = stats.isFull && !isOverstaffed;
+      } else if (staffingFilter === 'OVERSTAFFED') {
+        matchesStaffing = isOverstaffed;
+      }
+
+      return matchesDept && matchesDay && matchesStaffing;
     });
-  }, [shifts, selectedDeptFilter, selectedDayFilter]);
+  },
+                                        [shifts, submissions, selectedDeptFilters, selectedDayFilter, staffingFilter]
+                                       );
 
   const filteredSubmissions = useMemo(() => {
     return submissions.filter(sub => {
@@ -4183,18 +4211,53 @@ const assignedUnknown = assignedNames.filter(
           <div className="space-y-6">
             <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'} shadow-sm flex flex-wrap items-center justify-between gap-3`}>
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                <select
-                  value={selectedDeptFilter}
-                  onChange={e => setSelectedDeptFilter(e.target.value)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
-                    darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
-                  }`}
-                >
-                  <option value="ALL">All Departments ({DEPARTMENTS.length})</option>
-                  {ragDepartments.map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-                </select>
+                                <details className="relative">
+                  <summary
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border cursor-pointer list-none ${
+                      darkMode
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-slate-50 border-amber-200 text-slate-800'
+                    }`}
+                  >
+                    {selectedDeptFilters.length === 0
+                      ? `All Departments (${DEPARTMENTS.length})`
+                      : `${selectedDeptFilters.length} Departments Selected`}
+                    <span className="ml-2">▾</span>
+                  </summary>
+
+                  <div
+                    className={`absolute left-0 top-full mt-2 z-50 w-64 max-h-72 overflow-y-auto rounded-xl border shadow-xl p-3 space-y-2 ${
+                      darkMode
+                        ? 'bg-slate-900 border-slate-700 text-white'
+                        : 'bg-white border-amber-200 text-slate-800'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDeptFilters([])}
+                      className="text-xs font-bold text-amber-600 hover:underline mb-1"
+                    >
+                      Clear selection (show all)
+                    </button>
+
+                    {ragDepartments.map(d => (
+                      <label key={d} className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedDeptFilters.includes(d)}
+                          onChange={e => {
+                            setSelectedDeptFilters(current =>
+                              e.target.checked
+                                ? [...current, d]
+                                : current.filter(dept => dept !== d)
+                            );
+                          }}
+                        />
+                        {d}
+                      </label>
+                    ))}
+                  </div>
+                </details>
 
                 <select
                   value={selectedDayFilter}
@@ -4207,6 +4270,19 @@ const assignedUnknown = assignedNames.filter(
                   {DAYS.map(d => (
                     <option key={d.id} value={d.id}>{d.label}</option>
                   ))}
+                </select>
+                                <select
+                  value={staffingFilter}
+                  onChange={e => setStaffingFilter(e.target.value)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border outline-none ${
+                    darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-amber-200 text-slate-800'
+                  }`}
+                >
+                  <option value="ALL">All Staffing Levels</option>
+                  <option value="VACANT">Vacant</option>
+                  <option value="UNDERSTAFFED">Understaffed</option>
+                  <option value="FULL">Fully Staffed</option>
+                  <option value="OVERSTAFFED">Overstaffed</option>
                 </select>
               </div>
 
