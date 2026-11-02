@@ -561,8 +561,9 @@ const loadData = async () => {
     setIsLoadingData(true);
 
     const { data, error } = await supabase.rpc('get_admin_data', {
-      input_sid: adminSid
-    });
+  input_sid: adminSid,
+  input_token: adminSessionToken
+});
 
     if (error) {
       throw error;
