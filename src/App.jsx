@@ -575,13 +575,13 @@ const loadData = async () => {
       throw new Error(data?.message || 'Admin access denied');
     }
     console.log('REFRESHED ADMIN DATA:', data);
-    setSubmissions(
-      (data.submissions || []).map(submissionFromDb)
-    );
+   setSubmissions(
+  (data.submissions || []).filter(Boolean).map(submissionFromDb)
+);
 
-    setShifts(
-      (data.shifts || []).map(shiftFromDb)
-    );
+setShifts(
+  (data.shifts || []).filter(Boolean).map(shiftFromDb)
+);
 
     return true;
 
