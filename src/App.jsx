@@ -49,7 +49,8 @@ const DEPARTMENTS = [
   "Mehndi, Tattoo, Face Painting",
   "Crèche",
   "Catering Kitchen",
-  "Food Stalls"
+  "Food Stalls",
+  "Volunteer Management"
 ];
 
 const TIME_SLOTS = [
