@@ -574,7 +574,7 @@ const loadData = async () => {
     if (!data?.success) {
       throw new Error(data?.message || 'Admin access denied');
     }
-
+    console.log('REFRESHED ADMIN DATA:', data);
     setSubmissions(
       (data.submissions || []).map(submissionFromDb)
     );
