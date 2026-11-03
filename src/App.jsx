@@ -1336,10 +1336,10 @@ const handleProcessExcelData = async (textInput) => {
     });
 
     // Securely save permanently to Supabase
-    const { data, error } = await supabase.rpc('admin_import_sevaks', {
-      input_admin_sid: loggedInSevak.sid,
-      input_sevaks: mergedSevaks.map(submissionToDb)
-    });
+   const { data, error } = await supabase.rpc('get_admin_data', {
+  input_sid: adminSid,
+  input_token: adminSessionToken
+});
     if (error) throw error;
     if (!data?.success) {
       throw new Error(data?.message || 'Import failed');
