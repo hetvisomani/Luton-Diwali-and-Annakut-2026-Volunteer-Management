@@ -1993,9 +1993,10 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
     if (!editingShift) return;
     try {
       const { data, error } = await supabase.rpc('admin_update_shift', {
-        input_admin_sid: loggedInSevak.sid,
-        input_shift: shiftToDb(editingShift)
-      });
+  input_admin_sid: loggedInSevak.sid,
+  input_token: adminSessionToken,
+  input_shift: shiftToDb(editingShift)
+});
       if (error) throw error;
       if (!data?.success) {
         throw new Error(data?.message || 'Shift update failed');
