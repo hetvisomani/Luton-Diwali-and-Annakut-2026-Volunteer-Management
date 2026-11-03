@@ -561,9 +561,10 @@ const loadData = async () => {
   try {
     setIsLoadingData(true);
 
-    const { data, error } = await supabase.rpc('get_admin_data', {
-  input_sid: adminSid,
-  input_token: adminSessionToken
+   const { data, error } = await supabase.rpc('admin_update_shift', {
+  input_admin_sid: loggedInSevak.sid,
+  input_token: adminSessionToken,
+  input_shift: shiftToDb(editingShift)
 });
 
     if (error) {
