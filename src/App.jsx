@@ -5640,28 +5640,38 @@ const assignedUnknown = assignedNames.filter(
       </p>
     </div>
 
-    {/* GENDER FILTER */}
-    <div className="flex flex-wrap gap-2">
-      {[
-        { id: 'both', label: 'Both' },
-        { id: 'mahila', label: 'Mahila only' },
-        { id: 'gents', label: 'Gents only' }
-      ].map(option => (
-        <button
-          key={option.id}
-          onClick={() => setRagGenderFilter(option.id)}
-          className={`px-4 py-2 rounded-xl text-xs font-bold ${
-            ragGenderFilter === option.id
-              ? 'bg-amber-500 text-white shadow'
-              : darkMode
-                ? 'bg-slate-800 text-slate-300'
-                : 'bg-slate-100 text-slate-600'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+   {/* GENDER FILTER */}
+<div className="flex flex-wrap gap-2">
+  {[
+    { id: 'both', label: 'Both' },
+    ...(shifts.some(shift => {
+      const stats = getShiftGenderStats(shift);
+      return stats.hasGenderBreakdown && stats.requiredMahila > 0;
+    })
+      ? [{ id: 'mahila', label: 'Mahila only' }]
+      : []),
+    ...(shifts.some(shift => {
+      const stats = getShiftGenderStats(shift);
+      return stats.hasGenderBreakdown && stats.requiredGents > 0;
+    })
+      ? [{ id: 'gents', label: 'Gents only' }]
+      : [])
+  ].map(option => (
+    <button
+      key={option.id}
+      onClick={() => setRagGenderFilter(option.id)}
+      className={`px-4 py-2 rounded-xl text-xs font-bold ${
+        ragGenderFilter === option.id
+          ? 'bg-amber-500 text-white shadow'
+          : darkMode
+            ? 'bg-slate-800 text-slate-300'
+            : 'bg-slate-100 text-slate-600'
+      }`}
+    >
+      {option.label}
+    </button>
+  ))}
+</div>
 
     {/* STATUS LEGEND */}
     <div className="flex flex-wrap gap-3 text-[10px] font-bold">
