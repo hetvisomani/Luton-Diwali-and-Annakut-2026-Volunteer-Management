@@ -407,29 +407,30 @@ const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Convert a submission row from Supabase into the format used by this app
-const submissionFromDb = (row) => ({
-  if (!row) return null;if (!row) return null;
-                        return {
-  id: row.id,
-  sid: row.sid,
-  fullName: row.full_name,
-  email: row.email || '',
-  mandal: row.mandal || '',
-  primaryPreferredSeva: row.primary_preferred_seva || '',
-  otherPreferredSeva: row.other_preferred_seva || [],
-  preferredDepartments: row.preferred_departments || [],
-  diwaliTime: row.diwali_time || '',
-  annakutTime: row.annakut_time || '',
-  setupMondayTime: row.setup_monday_time || '',
-  windupTuesdayTime: row.windup_tuesday_time || '',
-  dbsCrecheStatus: row.dbs_creche_status || 'No',
-  crecheAvailableTimes: row.creche_available_times || 'N/A',
-  availability: row.availability || {},
-  crecheAvailability: row.creche_availability || 'No',
-  status: row.status || 'Pending',
-  assignedShifts: row.assigned_shifts || []
-      };
+ // Convert a submission row from Supabase into the format used by this app
+const submissionFromDb = (row) => {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    sid: row.sid,
+    fullName: row.full_name,
+    email: row.email || '',
+    mandal: row.mandal || '',
+    primaryPreferredSeva: row.primary_preferred_seva || '',
+    otherPreferredSeva: row.other_preferred_seva || [],
+    preferredDepartments: row.preferred_departments || [],
+    diwaliTime: row.diwali_time || '',
+    annakutTime: row.annakut_time || '',
+    setupMondayTime: row.setup_monday_time || '',
+    windupTuesdayTime: row.windup_tuesday_time || '',
+    dbsCrecheStatus: row.dbs_creche_status || 'No',
+    crecheAvailableTimes: row.creche_available_times || 'N/A',
+    availability: row.availability || {},
+    crecheAvailability: row.creche_availability || 'No',
+    status: row.status || 'Pending',
+    assignedShifts: row.assigned_shifts || []
+  };
 };
 
 // Convert a shift row from Supabase into the format used by this app
@@ -437,33 +438,26 @@ const shiftFromDb = (row) => {
   if (!row) return null;
 
   return {
-  id: row.id,
-  department: row.department,
-  day: row.day,
-  title: row.title,
-  timeSlot: row.time_slot,
-
-  // Keep the original total capacity for backwards compatibility
-  requiredVolunteers: Number(row.required_volunteers) || 0,
-
-  // New Gents / Mahila capacity breakdown.
-  // null means this older shift has not been split yet.
-  requiredGents:
-    row.required_gents === null || row.required_gents === undefined
-      ? null
-      : Number(row.required_gents),
-
-  requiredMahila:
-    row.required_mahila === null || row.required_mahila === undefined
-      ? null
-      : Number(row.required_mahila),
-
- assignedVolunteers: row.assigned_volunteers || [],
-  assignedVolunteerTimes: row.assigned_volunteer_times || {},
-  checkedInVolunteers: row.checked_in_volunteers || {},
-  leadVolunteerId: row.lead_volunteer_id,
-  location: row.location || '',
-  isUrgent: row.is_urgent || false
+    id: row.id,
+    department: row.department,
+    day: row.day,
+    title: row.title,
+    timeSlot: row.time_slot,
+    requiredVolunteers: Number(row.required_volunteers) || 0,
+    requiredGents:
+      row.required_gents === null || row.required_gents === undefined
+        ? null
+        : Number(row.required_gents),
+    requiredMahila:
+      row.required_mahila === null || row.required_mahila === undefined
+        ? null
+        : Number(row.required_mahila),
+    assignedVolunteers: row.assigned_volunteers || [],
+    assignedVolunteerTimes: row.assigned_volunteer_times || {},
+    checkedInVolunteers: row.checked_in_volunteers || {},
+    leadVolunteerId: row.lead_volunteer_id,
+    location: row.location || '',
+    isUrgent: row.is_urgent || false
   };
 };
   
