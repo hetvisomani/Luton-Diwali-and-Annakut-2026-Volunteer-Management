@@ -2186,15 +2186,22 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
         return gender === 'both' || group === gender;
       }))
       .sort((a, b) => {
-        const dayDifference =
-          dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+  const dayDifference =
+    dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
 
-        if (dayDifference !== 0) return dayDifference;
+  if (dayDifference !== 0) return dayDifference;
 
-        return String(a.timeSlot || '').localeCompare(
-          String(b.timeSlot || '')
-        );
-      });
+  const departmentDifference =
+    String(a.department || '').localeCompare(
+      String(b.department || '')
+    );
+
+  if (departmentDifference !== 0) return departmentDifference;
+
+  return String(a.timeSlot || '').localeCompare(
+    String(b.timeSlot || '')
+  );
+});
 
     if (rotaShifts.length === 0) {
       alert('There are no allocated volunteers for this export.');
