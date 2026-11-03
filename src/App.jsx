@@ -626,6 +626,8 @@ setShifts(
   // Dynamic RAG calendar controls
   const [ragGapsOnly, setRagGapsOnly] = useState(false);
   const [selectedRagShift, setSelectedRagShift] = useState(null);
+  const [ragInternalTab, setRagInternalTab] = useState('overview');
+  const [ragGenderFilter, setRagGenderFilter] = useState('both');
 
   const [newShift, setNewShift] = useState({
     department: DEPARTMENTS[0],
@@ -2211,6 +2213,24 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
       mahilaGap,
       totalGap,
       isFull
+    };
+    const getStaffingMatrixColumns = () => {
+  return DAYS.flatMap(day => {
+    const timeSlots = [
+      ...new Set(
+        shifts
+          .filter(shift => shift.day === day.id)
+          .map(shift => shift.timeSlot || shift.title)
+          .filter(Boolean)
+      )
+    ];
+
+    return timeSlots.map(timeSlot => ({
+      dayId: day.id,
+      dayLabel: day.label,
+      timeSlot
+    }));
+  });
     };
   };
 
@@ -4586,6 +4606,36 @@ const assignedUnknown = assignedNames.filter(
 {isAdminLoggedIn && activeTab === 'ragGaps' && (
   <div className="space-y-6">
 
+    {/* RAG INTERNAL TABS */}
+<div className={`flex gap-2 p-1.5 rounded-2xl w-fit ${
+  darkMode ? 'bg-slate-800' : 'bg-amber-50'
+}`}>
+  <button
+    onClick={() => setRagInternalTab('overview')}
+    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+      ragInternalTab === 'overview'
+        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow'
+        : darkMode ? 'text-slate-300' : 'text-slate-600'
+    }`}
+  >
+    RAG Overview
+  </button>
+
+  <button
+    onClick={() => setRagInternalTab('staffing')}
+    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+      ragInternalTab === 'staffing'
+        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow'
+        : darkMode ? 'text-slate-300' : 'text-slate-600'
+    }`}
+  >
+    Staffing Matrix
+  </button>
+</div>
+
+    {ragInternalTab === 'overview' && (
+  <>
+    
     {/* -------------------------------------------------- */}
     {/* RAG HEADER */}
     {/* -------------------------------------------------- */}
@@ -5562,6 +5612,243 @@ const assignedUnknown = assignedNames.filter(
         </div>
       );
     })()}
+    </>
+)}
+    {ragInternalTab === 'staffing' && (
+  <div className="space-y-5">
+
+    <div>
+      <h2 className="text-xl font-black">Staffing Matrix</h2>
+      <p className="text-xs text-slate-500 mt-1">
+        Required versus currently allocated volunteers across all three days.
+      </p>
+    </div>
+
+    {/* GENDER FILTER */}
+    <div className="flex flex-wrap gap-2">
+      {[
+        { id: 'both', label: 'Both' },
+        { id: 'mahila', label: 'Mahila only' },
+        { id: 'gents', label: 'Gents only' }
+      ].map(option => (
+        <button
+          key={option.id}
+          onClick={() => setRagGenderFilter(option.id)}
+          className={`px-4 py-2 rounded-xl text-xs font-bold ${
+            ragGenderFilter === option.id
+              ? 'bg-amber-500 text-white shadow'
+              : darkMode
+                ? 'bg-slate-800 text-slate-300'
+                : 'bg-slate-100 text-slate-600'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+
+    {/* STATUS LEGEND */}
+    <div className="flex flex-wrap gap-3 text-[10px] font-bold">
+      <span className="text-rose-500">● DEFICIT</span>
+      <span className="text-emerald-500">● FULLY STAFFED</span>
+      <span className="text-violet-500">● SURPLUS</span>
+    </div>
+
+    {/* MATRIX */}
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
+      <table className="w-max min-w-full text-xs border-collapse">
+
+        <thead>
+  <tr className={darkMode ? 'bg-slate-800' : 'bg-amber-50'}>
+    <th
+      rowSpan={2}
+      className="p-3 text-left sticky left-0 z-20 bg-inherit"
+    >
+      Department
+    </th>
+
+    {DAYS.map(day => {
+      const dayColumnCount = getStaffingMatrixColumns().filter(
+        column => column.dayId === day.id
+      ).length;
+
+      return dayColumnCount > 0 ? (
+        <th
+          key={day.id}
+          colSpan={dayColumnCount}
+          className="p-3 text-center border-l border-slate-300 dark:border-slate-600"
+        >
+          {day.label}
+        </th>
+      ) : null;
+    })}
+  </tr>
+
+  <tr className={darkMode ? 'bg-slate-800' : 'bg-amber-50'}>
+    {getStaffingMatrixColumns().map((column, index) => (
+      <th
+        key={`${column.dayId}-${column.timeSlot}-${index}`}
+        className="p-3 text-center min-w-[140px] border-l border-slate-200 dark:border-slate-700"
+      >
+        {column.timeSlot}
+      </th>
+    ))}
+  </tr>
+</thead>
+
+        <tbody>
+  {[...new Set(shifts.map(shift => shift.department).filter(Boolean))]
+  .sort((a, b) => a.localeCompare(b))
+  .map(department => (
+    <tr
+      key={department}
+      className="border-t border-slate-200 dark:border-slate-700"
+    >
+      <td className={`p-3 font-bold sticky left-0 z-10 ${
+        darkMode ? 'bg-slate-900' : 'bg-white'
+      }`}>
+        {department}
+      </td>
+
+      {getStaffingMatrixColumns().map((column, index) => {
+        const cellShifts = shifts.filter(
+          shift =>
+            shift.department === department &&
+            shift.day === column.dayId &&
+            (shift.timeSlot || shift.title) === column.timeSlot
+        );
+
+        return (
+          <td
+            key={`${column.dayId}-${column.timeSlot}-${index}`}
+            className="p-2 align-top border-l border-slate-100 dark:border-slate-800"
+          >
+            {cellShifts.length === 0 ? (
+              <span className="text-slate-400">—</span>
+            ) : (
+              <div className="space-y-2">
+                {cellShifts.map(shift => {
+                  const stats = getShiftGenderStats(shift);
+
+                  const groups = [];
+
+                  if (
+                    ragGenderFilter === 'both' ||
+                    ragGenderFilter === 'mahila'
+                  ) {
+                    groups.push({
+                      label: 'M',
+                      required: stats.requiredMahila,
+                      assigned: stats.assignedMahila
+                    });
+                  }
+
+                  if (
+                    ragGenderFilter === 'both' ||
+                    ragGenderFilter === 'gents'
+                  ) {
+                    groups.push({
+                      label: 'G',
+                      required: stats.requiredGents,
+                      assigned: stats.assignedGents
+                    });
+                  }
+
+                  const visibleGroups = stats.hasGenderBreakdown
+                    ? groups
+                    : [];
+
+                  const totalSurplus = visibleGroups.reduce(
+                    (sum, group) =>
+                      sum + Math.max(0, group.assigned - group.required),
+                    0
+                  );
+
+                  const totalDeficit = visibleGroups.reduce(
+                    (sum, group) =>
+                      sum + Math.max(0, group.required - group.assigned),
+                    0
+                  );
+
+                  const isSurplus = totalSurplus > 0;
+                  const isDeficit = totalDeficit > 0;
+
+                  return (
+                    <div
+                      key={shift.id}
+                      className={`rounded-xl border p-2 space-y-1 ${
+                        isDeficit
+                          ? 'bg-rose-50 border-rose-300 dark:bg-rose-950/30 dark:border-rose-800'
+                          : isSurplus
+                            ? 'bg-violet-50 border-violet-300 dark:bg-violet-950/30 dark:border-violet-800'
+                            : 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800'
+                      }`}
+                    >
+                      <div className="font-bold text-slate-700 dark:text-slate-200">
+                        {shift.title}
+                      </div>
+
+                      {stats.hasGenderBreakdown ? (
+                        visibleGroups.map(group => {
+                          const difference =
+                            group.assigned - group.required;
+
+                          return (
+                            <div
+                              key={group.label}
+                              className="flex justify-between gap-2"
+                            >
+                              <span className="font-bold text-slate-600 dark:text-slate-300">
+                                {group.label}
+                              </span>
+
+                              <span className="font-bold text-slate-800 dark:text-white">
+                                {group.assigned}/{group.required}
+                                {difference > 0
+                                  ? ` (+${difference})`
+                                  : difference < 0
+                                    ? ` (${difference})`
+                                    : ''}
+                              </span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-[10px] text-amber-700 dark:text-amber-300">
+                          Gender capacity not set
+                        </div>
+                      )}
+
+                      <div className={`text-[9px] font-black uppercase ${
+                        isDeficit
+                          ? 'text-rose-600'
+                          : isSurplus
+                            ? 'text-violet-600'
+                            : 'text-emerald-600'
+                      }`}>
+                        {isDeficit
+                          ? `${totalDeficit} needed`
+                          : isSurplus
+                            ? `${totalSurplus} surplus`
+                            : stats.hasGenderBreakdown
+                              ? 'Fully staffed'
+                              : 'Not configured'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </td>
+        );
+      })}
+    </tr>
+  ))}
+</tbody>
+      </table>
+    </div>
+  </div>
+)}
   </div>
 )}
 
