@@ -628,6 +628,22 @@ setShifts(
   const [selectedRagShift, setSelectedRagShift] = useState(null);
   const [ragInternalTab, setRagInternalTab] = useState('overview');
   const [ragGenderFilter, setRagGenderFilter] = useState('both');
+  const staffingMatrixColumns = DAYS.flatMap(day => {
+  const timeSlots = [
+    ...new Set(
+      shifts
+        .filter(shift => shift.day === day.id)
+        .map(shift => shift.timeSlot || shift.title)
+        .filter(Boolean)
+    )
+  ];
+
+  return timeSlots.map(timeSlot => ({
+    dayId: day.id,
+    dayLabel: day.label,
+    timeSlot
+  }));
+});
 
   const [newShift, setNewShift] = useState({
     department: DEPARTMENTS[0],
@@ -5668,7 +5684,7 @@ const assignedUnknown = assignedNames.filter(
     </th>
 
     {DAYS.map(day => {
-      const dayColumnCount = getStaffingMatrixColumns().filter(
+      const dayColumnCount = staffingMatrixColumns.filter(
         column => column.dayId === day.id
       ).length;
 
@@ -5685,7 +5701,7 @@ const assignedUnknown = assignedNames.filter(
   </tr>
 
   <tr className={darkMode ? 'bg-slate-800' : 'bg-amber-50'}>
-    {getStaffingMatrixColumns().map((column, index) => (
+    {staffingMatrixColumns.map((column, index) => (
       <th
         key={`${column.dayId}-${column.timeSlot}-${index}`}
         className="p-3 text-center min-w-[140px] border-l border-slate-200 dark:border-slate-700"
@@ -5710,7 +5726,7 @@ const assignedUnknown = assignedNames.filter(
         {department}
       </td>
 
-      {getStaffingMatrixColumns().map((column, index) => {
+      {staffingMatrixColumns.map((column, index) => {
         const cellShifts = shifts.filter(
           shift =>
             shift.department === department &&
