@@ -406,6 +406,9 @@ const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [shifts, setShifts] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  // PDF rota export selections
+const [pdfDepartment, setPdfDepartment] = useState('');
+const [pdfGender, setPdfGender] = useState('both');
 
  // Convert a submission row from Supabase into the format used by this app
 const submissionFromDb = (row) => {
@@ -2157,11 +2160,162 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
       return 'gents';
     }
   
+  
     return 'unknown';
   };
-  
-  
+
+  // Generate a print-ready rota that can be saved as a PDF
+  const exportRotaPdf = (title, selectedShifts, gender = 'both') => {
+    const escapeHtml = (value) =>
+      String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[char]);
+
+    const dayOrder = DAYS.map(day => day.id);
+
+    const rotaShifts = selectedShifts
+      .filter(shift => (shift.assignedVolunteers || []).some(id => {
+        const sevak = submissions.find(sub => sub.id === id);
+        if (!sevak) return false;
+
+        const group = getSevakGroup(sevak);
+        return gender === 'both' || group === gender;
+      }))
+      .sort((a, b) => {
+        const dayDifference =
+          dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+
+        if (dayDifference !== 0) return dayDifference;
+
+        return String(a.timeSlot || '').localeCompare(
+          String(b.timeSlot || '')
+        );
+      });
+
+    if (rotaShifts.length === 0) {
+      alert('There are no allocated volunteers for this export.');
+      return;
+    }
+
+    const shiftSections = rotaShifts.map(shift => {
+      const day = DAYS.find(item => item.id === shift.day);
+
+      const volunteers = (shift.assignedVolunteers || [])
+        .map(id => submissions.find(sub => sub.id === id))
+        .filter(Boolean)
+        .filter(sevak => {
+          const group = getSevakGroup(sevak);
+          return gender === 'both' || group === gender;
+        });
+
+      const volunteerRows = volunteers.map(sevak => {
+        const adjustedTime = shift.assignedVolunteerTimes?.[sevak.id];
+        const workingTime = adjustedTime
+          ? `${formatTimelineTime(adjustedTime.start)} – ${formatTimelineTime(adjustedTime.end)}`
+          : (shift.timeSlot || shift.title || 'Time not specified');
+
+        const isLead = shift.leadVolunteerId === sevak.id;
+
+        return `
+          <tr>
+            <td>${escapeHtml(sevak.fullName)}</td>
+            <td>${escapeHtml(workingTime)}</td>
+            <td>${isLead ? 'TEAM LEADER' : ''}</td>
+          </tr>
+        `;
+      }).join('');
+
+      return `
+        <section class="shift">
+          <h3>${escapeHtml(day?.label || shift.day)}</h3>
+          <h4>${escapeHtml(shift.department || 'Department')} — ${escapeHtml(shift.timeSlot || shift.title || '')}</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Volunteer</th>
+                <th>Working time</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>${volunteerRows}</tbody>
+          </table>
+        </section>
+      `;
+    }).join('');
+
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+      alert('Please allow pop-ups for this website to export the PDF.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${escapeHtml(title)}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 30px;
+              color: #222;
+            }
+            h1 {
+              font-size: 24px;
+              margin-bottom: 8px;
+            }
+            h3 {
+              background: #eee;
+              padding: 9px;
+              margin-bottom: 6px;
+            }
+            h4 {
+              margin: 10px 0;
+            }
+            .shift {
+              margin-bottom: 22px;
+              break-inside: avoid;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #ccc;
+              padding: 8px;
+              text-align: left;
+              font-size: 12px;
+            }
+            th {
+              background: #f5f5f5;
+            }
+            @media print {
+              body { padding: 0; }
+              .shift { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(title)}</h1>
+          <p>BAPS Luton — Diwali & Annakut 2026</p>
+          ${shiftSections}
+          <script>
+            window.onload = () => window.print();
+          <\/script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+  };
+
   const getShiftGenderStats = (shift) => {
+
     const allocatedSevaks = (shift.assignedVolunteers || [])
       .map(id => submissions.find(sub => sub.id === id))
       .filter(Boolean);
@@ -4647,6 +4801,16 @@ const assignedUnknown = assignedNames.filter(
   >
     Staffing Matrix
   </button>
+  <button
+  onClick={() => setRagInternalTab('exports')}
+  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+    ragInternalTab === 'exports'
+      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow'
+      : darkMode ? 'text-slate-300' : 'text-slate-600'
+  }`}
+>
+  PDF Rota Exports
+</button>
 </div>
 
     {ragInternalTab === 'overview' && (
@@ -5855,6 +6019,130 @@ const assignedUnknown = assignedNames.filter(
 </div>
   </div>
 )}
+    
+{ragInternalTab === 'exports' && (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-xl font-black">PDF Rota Exports</h2>
+      <p className="text-xs text-slate-500 mt-1">
+        Create print-ready volunteer rotas to save and share as PDFs.
+      </p>
+    </div>
+
+    <div className={`rounded-2xl border p-5 space-y-4 ${
+      darkMode
+        ? 'bg-slate-900 border-slate-700'
+        : 'bg-white border-slate-200'
+    }`}>
+      <h3 className="font-black text-sm">Department-specific rota</h3>
+
+      <div>
+        <label className="block text-xs font-bold mb-2">
+          Select department
+        </label>
+        <select
+          value={pdfDepartment}
+          onChange={event => setPdfDepartment(event.target.value)}
+          className="w-full p-3 rounded-xl border bg-transparent text-sm"
+        >
+          <option value="">Choose a department</option>
+          {[...new Set(shifts.map(shift => shift.department).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b))
+            .map(department => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold mb-2">
+          Volunteer group
+        </label>
+        <select
+          value={pdfGender}
+          onChange={event => setPdfGender(event.target.value)}
+          className="w-full p-3 rounded-xl border bg-transparent text-sm"
+        >
+          <option value="both">Both Mahila and Gents</option>
+          <option value="mahila">Mahila only</option>
+          <option value="gents">Gents only</option>
+        </select>
+      </div>
+
+      <button
+        onClick={() => {
+          if (!pdfDepartment) {
+            alert('Please select a department first.');
+            return;
+          }
+
+          exportRotaPdf(
+            `${pdfDepartment} — ${pdfGender === 'both' ? 'All Volunteers' : pdfGender === 'mahila' ? 'Mahila' : 'Gents'}`,
+            shifts.filter(shift => shift.department === pdfDepartment),
+            pdfGender
+          );
+        }}
+        disabled={!pdfDepartment}
+        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold text-sm"
+      >
+        <Download className="w-4 h-4" />
+        Generate Department PDF
+      </button>
+    </div>
+  </div>
+)}
+    
+    <div className={`rounded-2xl border p-5 space-y-4 ${
+      darkMode
+        ? 'bg-slate-900 border-slate-700'
+        : 'bg-white border-slate-200'
+    }`}>
+      <div>
+        <h3 className="font-black text-sm">Whole-event daily rotas</h3>
+        <p className="text-xs text-slate-500 mt-1">
+          Generate a separate PDF for each day and volunteer group.
+        </p>
+      </div>
+
+      {DAYS.map(day => (
+        <div
+          key={day.id}
+          className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-2"
+        >
+          <h4 className="font-bold text-sm">{day.label}</h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              onClick={() => exportRotaPdf(
+                `${day.label} — Mahila Rota`,
+                shifts.filter(shift => shift.day === day.id),
+                'mahila'
+              )}
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-xs"
+            >
+              <Download className="w-4 h-4" />
+              Mahila PDF
+            </button>
+
+            <button
+              onClick={() => exportRotaPdf(
+                `${day.label} — Gents Rota`,
+                shifts.filter(shift => shift.day === day.id),
+                'gents'
+              )}
+              className="flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+            >
+              <Download className="w-4 h-4" />
+              Gents PDF
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+
+
   </div>
 )}
 
