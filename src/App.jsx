@@ -409,6 +409,8 @@ const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   // Convert a submission row from Supabase into the format used by this app
 const submissionFromDb = (row) => ({
+  if (!row) return null;if (!row) return null;
+                        return {
   id: row.id,
   sid: row.sid,
   fullName: row.full_name,
@@ -427,10 +429,14 @@ const submissionFromDb = (row) => ({
   crecheAvailability: row.creche_availability || 'No',
   status: row.status || 'Pending',
   assignedShifts: row.assigned_shifts || []
-});
+      };
+};
 
 // Convert a shift row from Supabase into the format used by this app
-const shiftFromDb = (row) => ({
+const shiftFromDb = (row) => {
+  if (!row) return null;
+
+  return {
   id: row.id,
   department: row.department,
   day: row.day,
@@ -458,7 +464,8 @@ const shiftFromDb = (row) => ({
   leadVolunteerId: row.lead_volunteer_id,
   location: row.location || '',
   isUrgent: row.is_urgent || false
-});
+  };
+};
   
 // Convert a submission from the app format into Supabase format
 const submissionToDb = (submission) => ({
