@@ -5670,199 +5670,160 @@ const assignedUnknown = assignedNames.filter(
       <span className="text-violet-500">● SURPLUS</span>
     </div>
 
-    {/* MATRIX */}
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-      <table className="w-max min-w-full text-xs border-collapse">
-
-        <thead>
-  <tr className={darkMode ? 'bg-slate-800' : 'bg-amber-50'}>
-    <th
-      rowSpan={2}
-      className="p-3 text-left sticky left-0 z-20 bg-inherit"
-    >
-      Department
-    </th>
-
-    {DAYS.map(day => {
-      const dayColumnCount = staffingMatrixColumns.filter(
-        column => column.dayId === day.id
-      ).length;
-
-      return dayColumnCount > 0 ? (
-        <th
-          key={day.id}
-          colSpan={dayColumnCount}
-          className="p-3 text-center border-l border-slate-300 dark:border-slate-600"
-        >
-          {day.label}
-        </th>
-      ) : null;
-    })}
-  </tr>
-
-  <tr className={darkMode ? 'bg-slate-800' : 'bg-amber-50'}>
-    {staffingMatrixColumns.map((column, index) => (
-      <th
-        key={`${column.dayId}-${column.timeSlot}-${index}`}
-        className="p-3 text-center min-w-[140px] border-l border-slate-200 dark:border-slate-700"
-      >
-        {column.timeSlot}
-      </th>
-    ))}
-  </tr>
-</thead>
-
-        <tbody>
+{/* DEPARTMENT STAFFING SECTIONS */}
+<div className="space-y-3">
   {[...new Set(shifts.map(shift => shift.department).filter(Boolean))]
-  .sort((a, b) => a.localeCompare(b))
-  .map(department => (
-    <tr
-      key={department}
-      className="border-t border-slate-200 dark:border-slate-700"
-    >
-      <td className={`p-3 font-bold sticky left-0 z-10 ${
-        darkMode ? 'bg-slate-900' : 'bg-white'
-      }`}>
-        {department}
-      </td>
+    .sort((a, b) => a.localeCompare(b))
+    .map(department => {
+      const departmentShifts = shifts
+        .filter(shift => shift.department === department)
+        .sort((a, b) => {
+          const dayOrder = DAYS.findIndex(day => day.id === a.day) -
+            DAYS.findIndex(day => day.id === b.day);
 
-      {staffingMatrixColumns.map((column, index) => {
-        const cellShifts = shifts.filter(
-          shift =>
-            shift.department === department &&
-            shift.day === column.dayId &&
-            (shift.timeSlot || shift.title) === column.timeSlot
-        );
+          if (dayOrder !== 0) return dayOrder;
 
-        return (
-          <td
-            key={`${column.dayId}-${column.timeSlot}-${index}`}
-            className="p-2 align-top border-l border-slate-100 dark:border-slate-800"
-          >
-            {cellShifts.length === 0 ? (
-              <span className="text-slate-400">—</span>
-            ) : (
-              <div className="space-y-2">
-                {cellShifts.map(shift => {
-                  const stats = getShiftGenderStats(shift);
+          return String(a.timeSlot || '').localeCompare(
+            String(b.timeSlot || '')
+          );
+        });
 
-                  const groups = [];
+      return (
+        <div
+          key={department}
+          className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700"
+        >
+          <div className={`p-3 text-center font-black text-sm ${
+            darkMode
+              ? 'bg-slate-800 text-white'
+              : 'bg-slate-200 text-slate-900'
+          }`}>
+            {department}
+          </div>
 
-                  if (
-                    ragGenderFilter === 'both' ||
-                    ragGenderFilter === 'mahila'
-                  ) {
-                    groups.push({
-                      label: 'M',
-                      required: stats.requiredMahila,
-                      assigned: stats.assignedMahila
-                    });
-                  }
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-slate-200 dark:bg-slate-700">
+            {departmentShifts.map(shift => {
+              const stats = getShiftGenderStats(shift);
 
-                  if (
-                    ragGenderFilter === 'both' ||
-                    ragGenderFilter === 'gents'
-                  ) {
-                    groups.push({
-                      label: 'G',
-                      required: stats.requiredGents,
-                      assigned: stats.assignedGents
-                    });
-                  }
+              const visibleGroups = [];
 
-                  const visibleGroups = stats.hasGenderBreakdown
-                    ? groups
-                    : [];
+              if (
+                ragGenderFilter === 'both' ||
+                ragGenderFilter === 'mahila'
+              ) {
+                visibleGroups.push({
+                  label: 'Mahila',
+                  required: stats.requiredMahila,
+                  assigned: stats.assignedMahila
+                });
+              }
 
-                  const totalSurplus = visibleGroups.reduce(
-                    (sum, group) =>
-                      sum + Math.max(0, group.assigned - group.required),
-                    0
-                  );
+              if (
+                ragGenderFilter === 'both' ||
+                ragGenderFilter === 'gents'
+              ) {
+                visibleGroups.push({
+                  label: 'Gents',
+                  required: stats.requiredGents,
+                  assigned: stats.assignedGents
+                });
+              }
 
-                  const totalDeficit = visibleGroups.reduce(
+              const totalDeficit = stats.hasGenderBreakdown
+                ? visibleGroups.reduce(
                     (sum, group) =>
                       sum + Math.max(0, group.required - group.assigned),
                     0
-                  );
+                  )
+                : 0;
 
-                  const isSurplus = totalSurplus > 0;
-                  const isDeficit = totalDeficit > 0;
+              const totalSurplus = stats.hasGenderBreakdown
+                ? visibleGroups.reduce(
+                    (sum, group) =>
+                      sum + Math.max(0, group.assigned - group.required),
+                    0
+                  )
+                : 0;
 
-                  return (
-                    <div
-                      key={shift.id}
-                      className={`rounded-xl border p-2 space-y-1 ${
-                        isDeficit
-                          ? 'bg-rose-50 border-rose-300 dark:bg-rose-950/30 dark:border-rose-800'
-                          : isSurplus
-                            ? 'bg-violet-50 border-violet-300 dark:bg-violet-950/30 dark:border-violet-800'
-                            : 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800'
-                      }`}
-                    >
-                      <div className="font-bold text-slate-700 dark:text-slate-200">
-                        {shift.title}
-                      </div>
+              const cardColour = !stats.hasGenderBreakdown
+                ? darkMode
+                  ? 'bg-slate-800'
+                  : 'bg-slate-100'
+                : totalDeficit > 0
+                  ? 'bg-rose-100 dark:bg-rose-950/40'
+                  : totalSurplus > 0
+                    ? 'bg-violet-100 dark:bg-violet-950/40'
+                    : 'bg-emerald-100 dark:bg-emerald-950/40';
 
-                      {stats.hasGenderBreakdown ? (
-                        visibleGroups.map(group => {
-                          const difference =
-                            group.assigned - group.required;
+              const day = DAYS.find(item => item.id === shift.day);
 
-                          return (
-                            <div
-                              key={group.label}
-                              className="flex justify-between gap-2"
-                            >
-                              <span className="font-bold text-slate-600 dark:text-slate-300">
-                                {group.label}
-                              </span>
+              return (
+                <div
+                  key={shift.id}
+                  className={`p-3 min-h-[115px] ${cardColour}`}
+                >
+                  <div className="font-black text-xs text-slate-900 dark:text-white">
+                    {day?.date || shift.day}
+                  </div>
 
-                              <span className="font-bold text-slate-800 dark:text-white">
-                                {group.assigned}/{group.required}
-                                {difference > 0
-                                  ? ` (+${difference})`
-                                  : difference < 0
-                                    ? ` (${difference})`
-                                    : ''}
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-[10px] text-amber-700 dark:text-amber-300">
-                          Gender capacity not set
+                  <div className="font-bold text-xs text-slate-800 dark:text-slate-200 mt-1">
+                    {shift.timeSlot || shift.title}
+                  </div>
+
+                  {stats.hasGenderBreakdown ? (
+                    <div className="mt-2 space-y-1">
+                      {visibleGroups.map(group => (
+                        <div
+                          key={group.label}
+                          className="text-xs font-semibold text-slate-800 dark:text-slate-200"
+                        >
+                          {group.label} requested - {group.required}
+                          <br />
+                          {group.label} allocated - {group.assigned}
+                          {group.assigned > group.required && (
+                            <span className="text-violet-700 dark:text-violet-300">
+                              {' '}(+{group.assigned - group.required} surplus)
+                            </span>
+                          )}
+                          {group.assigned < group.required && (
+                            <span className="text-rose-700 dark:text-rose-300">
+                              {' '}({group.required - group.assigned} needed)
+                            </span>
+                          )}
                         </div>
-                      )}
-
-                      <div className={`text-[9px] font-black uppercase ${
-                        isDeficit
-                          ? 'text-rose-600'
-                          : isSurplus
-                            ? 'text-violet-600'
-                            : 'text-emerald-600'
-                      }`}>
-                        {isDeficit
-                          ? `${totalDeficit} needed`
-                          : isSurplus
-                            ? `${totalSurplus} surplus`
-                            : stats.hasGenderBreakdown
-                              ? 'Fully staffed'
-                              : 'Not configured'}
-                      </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </td>
-        );
-      })}
-    </tr>
-  ))}
-</tbody>
-      </table>
-    </div>
+                  ) : (
+                    <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                      Gender capacity not set
+                    </div>
+                  )}
+
+                  <div className={`mt-2 text-[10px] font-black uppercase ${
+                    totalDeficit > 0
+                      ? 'text-rose-700 dark:text-rose-300'
+                      : totalSurplus > 0
+                        ? 'text-violet-700 dark:text-violet-300'
+                        : stats.hasGenderBreakdown
+                          ? 'text-emerald-700 dark:text-emerald-300'
+                          : 'text-amber-700 dark:text-amber-300'
+                  }`}>
+                    {!stats.hasGenderBreakdown
+                      ? 'Not configured'
+                      : totalDeficit > 0
+                        ? `${totalDeficit} needed`
+                        : totalSurplus > 0
+                          ? `${totalSurplus} surplus`
+                          : 'Fully staffed'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    })}
+</div>
   </div>
 )}
   </div>
