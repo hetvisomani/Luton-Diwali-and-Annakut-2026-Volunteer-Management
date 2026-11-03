@@ -5693,11 +5693,13 @@ const assignedUnknown = assignedNames.filter(
     const stats = getShiftGenderStats(shift);
 
     if (ragGenderFilter === 'mahila') {
-      return stats.hasGenderBreakdown && stats.requiredMahila > 0;
+      return stats.hasGenderBreakdown &&
+  (stats.requiredMahila > 0 || stats.assignedMahila > 0);
     }
 
     if (ragGenderFilter === 'gents') {
-      return stats.hasGenderBreakdown && stats.requiredGents > 0;
+      return stats.hasGenderBreakdown &&
+  (stats.requiredGents > 0 || stats.assignedGents > 0);
     }
 
     return true;
