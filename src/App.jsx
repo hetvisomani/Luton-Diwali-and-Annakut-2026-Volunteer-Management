@@ -5646,13 +5646,15 @@ const assignedUnknown = assignedNames.filter(
     { id: 'both', label: 'Both' },
     ...(shifts.some(shift => {
       const stats = getShiftGenderStats(shift);
-      return stats.hasGenderBreakdown && stats.requiredMahila > 0;
+      return stats.hasGenderBreakdown &&
+  (stats.requiredMahila > 0 || stats.assignedMahila > 0);
     })
       ? [{ id: 'mahila', label: 'Mahila only' }]
       : []),
     ...(shifts.some(shift => {
       const stats = getShiftGenderStats(shift);
-      return stats.hasGenderBreakdown && stats.requiredGents > 0;
+      return stats.hasGenderBreakdown &&
+  (stats.requiredGents > 0 || stats.assignedGents > 0);
     })
       ? [{ id: 'gents', label: 'Gents only' }]
       : [])
