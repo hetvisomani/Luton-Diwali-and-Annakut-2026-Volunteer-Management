@@ -5685,9 +5685,22 @@ const assignedUnknown = assignedNames.filter(
   {[...new Set(shifts.map(shift => shift.department).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b))
     .map(department => {
-      const departmentShifts = shifts
-        .filter(shift => shift.department === department)
-        .sort((a, b) => {
+     const departmentShifts = shifts
+  .filter(shift => shift.department === department)
+  .filter(shift => {
+    const stats = getShiftGenderStats(shift);
+
+    if (ragGenderFilter === 'mahila') {
+      return stats.hasGenderBreakdown && stats.requiredMahila > 0;
+    }
+
+    if (ragGenderFilter === 'gents') {
+      return stats.hasGenderBreakdown && stats.requiredGents > 0;
+    }
+
+    return true;
+  })
+  .sort((a, b) => {
           const dayOrder = DAYS.findIndex(day => day.id === a.day) -
             DAYS.findIndex(day => day.id === b.day);
 
@@ -5697,6 +5710,8 @@ const assignedUnknown = assignedNames.filter(
             String(b.timeSlot || '')
           );
         });
+
+      if (departmentShifts.length === 0) return null;
 
       return (
         <div
