@@ -67,21 +67,47 @@ const DAYS = [
 
 
 const DEPARTMENT_LEADS = {
-  "Annakut Setup/Windup": { lead: "Bhavesh Patel"},
-  "AV": { lead: "Ketan Shah"},
-  "Catering/Food stalls": { lead: "Dhiren Amin"},
-  "Finance": { lead: "Sanjay Mehta"},
-  "Housekeeping": { lead: "Mahesh Joshi"},
-  "Mandir Shop": { lead: "Rakesh Patel"},
-  "Outreach": { lead: "Anil Kumar"},
-  "Parking": { lead: "Jiten Patel"},
-  "Photography/Videography": { lead: "Pravin Tailor"},
-  "Security": { lead: "Dipak Bhagat"},
-  "Sabha Vyavestha": { lead: "Hitesh Trivedi"},
-  "Sampark": { lead: "Nitin Sharma"},
-  "Welcome": { lead: "Jayesh Patel"},
-  "Flow management": { lead: "Amit Parikh"},
-  "Volunteer management": { lead: "Harish Dave"}
+  "Annakut Setup/Windup": { 
+    mahila: "Reenaben, Rupalben, Miliben"
+  },
+  "AV": { 
+    gents: "Mayurbhai"
+  },
+  "Catering/Food stalls": { 
+    mahila: "Devalben"
+  },
+  "Finance": { 
+    gents: "Sagarbhai"
+  },
+  "Housekeeping": { 
+    gents: "BK"
+  },
+  "Mandir Shop": { 
+    mahila: "Shreeyaben, Meghnaben"
+  },
+  "Outreach": { 
+    mahila: "Sheilaben",
+    gents: "Rajbhai"
+  },
+  "Parking": { 
+    gents: "Vipulbhai"
+  },
+  "Security": {
+    mahila: "Meenaben",
+    gents: "Vipulbhai"
+  },
+  "Sabha Vyavestha": {
+    mahila: "Leiaben",
+    gents: "Dhirenbhai"
+  },
+  "Sampark": { 
+    mahila: "Ruchiben",
+    gents: ""
+  },
+  "Welcome": { 
+    mahila: "mBK"
+  },
+  "Volunteer management": { lead: ""}
 };
 
 const generateInitialShifts = () => {
@@ -3541,6 +3567,7 @@ return matchesDay && matchesDepartment && matchesStaffing;
                           if (!shift) return null;
                           const isLead = shift.leadVolunteerId === loggedInSevak.id;
                           const deptContact = DEPARTMENT_LEADS[shift.department];
+                        const deptLeadName = deptContact?.[getSevakGroup(loggedInSevak)];
                         const personalWorkingTime =
                           shift.assignedVolunteerTimes?.[loggedInSevak.id];
                           const dayObj = DAYS.find(d => d.id === shift.day);
@@ -3594,7 +3621,9 @@ return matchesDay && matchesDepartment && matchesStaffing;
                                 <div className="pt-2 flex items-center justify-between text-xs bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-xl border border-amber-200/50 dark:border-slate-700/50">
                                   <div className="flex items-center gap-2">
                                     <User className="w-3.5 h-3.5 text-slate-400" />
-                                    <span className="text-slate-600 dark:text-slate-300">Dept Lead: <strong>{deptContact.lead}</strong></span>
+                                    <span className="text-slate-600 dark:text-slate-300">
+  Dept Lead: <strong>{deptLeadName || 'Not yet assigned'}</strong>
+</span>
                                   </div>
                                 </div>
                               )}
