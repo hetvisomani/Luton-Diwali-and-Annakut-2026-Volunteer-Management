@@ -3557,8 +3557,8 @@ return matchesDay && matchesDepartment && matchesStaffing;
 
                     {loggedInSevak.assignedShifts.length === 0 ? (
                       <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 text-center space-y-2">
-                        <p className="font-bold">Your seva duties are currently being prepared.</p>
-                        <p className="text-[11px] text-slate-500">Please check back shortly or speak with your Mandal coordinator.</p>
+                        <p className="font-bold">Your rota is currently being prepared.</p>
+                        <p className="text-[11px] text-slate-500">Please check back shortly or speak to your Mandal ACO.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
