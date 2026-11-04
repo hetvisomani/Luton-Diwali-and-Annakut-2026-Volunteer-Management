@@ -3562,7 +3562,43 @@ return matchesDay && matchesDepartment && matchesStaffing;
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {loggedInSevak.assignedShifts.map(shiftId => {
+                        {[...loggedInSevak.assignedShifts]
+  .sort((idA, idB) => {
+    const shiftA = shifts.find(s => s.id === idA);
+    const shiftB = shifts.find(s => s.id === idB);
+
+    if (!shiftA || !shiftB) return 0;
+
+    const dayA = DAYS.findIndex(d => d.id === shiftA.day);
+    const dayB = DAYS.findIndex(d => d.id === shiftB.day);
+
+    if (dayA !== dayB) return dayA - dayB;
+
+    const getStartMinutes = (shift) => {
+      const personalTime =
+        shift.assignedVolunteerTimes?.[loggedInSevak.id];
+
+      const timeText = personalTime?.start || shift.timeSlot || '';
+
+      const match = String(timeText).match(
+        /(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i
+      );
+
+      if (!match) return 0;
+
+      let hours = Number(match[1]);
+      const minutes = Number(match[2] || 0);
+      const period = (match[3] || '').toLowerCase();
+
+      if (period === 'pm' && hours !== 12) hours += 12;
+      if (period === 'am' && hours === 12) hours = 0;
+
+      return hours * 60 + minutes;
+    };
+
+    return getStartMinutes(shiftA) - getStartMinutes(shiftB);
+  })
+  .map(shiftId => {
                           const shift = shifts.find(s => s.id === shiftId);
                           if (!shift) return null;
                           const isLead = shift.leadVolunteerId === loggedInSevak.id;
