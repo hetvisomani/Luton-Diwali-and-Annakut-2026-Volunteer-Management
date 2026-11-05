@@ -3610,10 +3610,10 @@ return matchesDay && matchesDepartment && matchesStaffing;
                   </div>
 
                   {workingTime && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Allocated hours: {workingTime}
-                    </p>
-                  )}
+  <p className="text-xs text-slate-500 dark:text-slate-400">
+    Allocated hours: {workingTime.start} – {workingTime.end}
+  </p>
+)}
 
                   {response?.requested_start || response?.requested_end ? (
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
