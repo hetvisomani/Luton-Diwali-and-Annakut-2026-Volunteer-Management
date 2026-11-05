@@ -418,6 +418,11 @@ export default function App() {
   const [portalSidInput, setPortalSidInput] = useState('');
   const [loggedInSevak, setLoggedInSevak] = useState(null);
   const [portalMessage, setPortalMessage] = useState('');
+  // Shift confirmation state
+const [shiftConfirmations, setShiftConfirmations] = useState([]);
+const [confirmationDrafts, setConfirmationDrafts] = useState({});
+const [savingConfirmationId, setSavingConfirmationId] = useState('');
+const [confirmationMessage, setConfirmationMessage] = useState('');
 
   // Admin password authentication state
 const [pendingAdminSid, setPendingAdminSid] = useState('');
@@ -1468,7 +1473,29 @@ if (loginData.is_admin) {
           portalData?.message || 'Sevak portal could not be loaded'
         );
       }
+      // Load this sevak's saved shift confirmations
+const {
+  data: confirmationData,
+  error: confirmationError
+} = await supabase.rpc(
+  'get_sevak_shift_confirmations',
+  {
+    input_sid: cleanInput
+  }
+);
 
+if (confirmationError) throw confirmationError;
+
+if (!confirmationData?.success) {
+  throw new Error('Could not load shift confirmations.');
+}
+
+setShiftConfirmations(
+  confirmationData.confirmations || []
+);
+
+setConfirmationDrafts({});
+setConfirmationMessage('');
       const sevak = submissionFromDb(portalData.sevak);
 
       setSubmissions([sevak]);
@@ -1492,6 +1519,56 @@ if (loginData.is_admin) {
     setPortalMessage(
       'Unable to log in right now. Please try again.'
     );
+  }
+};
+  // Save an individual shift confirmation response
+const handleSaveShiftConfirmation = async (shiftId, responseStatus) => {
+  if (!loggedInSevak) return;
+
+  const draft = confirmationDrafts[shiftId] || {};
+
+  setSavingConfirmationId(shiftId);
+  setConfirmationMessage('');
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'save_shift_confirmation',
+      {
+        input_sid: loggedInSevak.sid,
+        input_shift_id: shiftId,
+        input_response_status: responseStatus,
+        input_comment: draft.comment || null,
+        input_requested_start: draft.requestedStart || null,
+        input_requested_end: draft.requestedEnd || null
+      }
+    );
+
+    if (error) throw error;
+
+    if (!data?.success) {
+      throw new Error(data?.message || 'Could not save response.');
+    }
+
+    // Reload saved responses from Supabase
+    const { data: confirmationData, error: confirmationError } =
+      await supabase.rpc('get_sevak_shift_confirmations', {
+        input_sid: loggedInSevak.sid
+      });
+
+    if (confirmationError) throw confirmationError;
+
+    if (!confirmationData?.success) {
+      throw new Error('Could not reload saved responses.');
+    }
+
+    setShiftConfirmations(confirmationData.confirmations || []);
+    setConfirmationMessage('Your response has been saved successfully.');
+
+  } catch (error) {
+    console.error('Shift confirmation error:', error);
+    setConfirmationMessage('Unable to save your response. Please try again.');
+  } finally {
+    setSavingConfirmationId('');
   }
 };
 
@@ -1539,6 +1616,27 @@ if (loginData.is_admin) {
     if (!adminData?.success) {
       throw new Error('Admin data could not be loaded.');
     }
+    // Load all shift confirmation responses using the secure admin session
+const {
+  data: adminConfirmationData,
+  error: adminConfirmationError
+} = await supabase.rpc(
+  'get_admin_shift_confirmations',
+  {
+    input_admin_sid: pendingAdminSid,
+    input_token: token
+  }
+);
+
+if (adminConfirmationError) throw adminConfirmationError;
+
+if (!adminConfirmationData?.success) {
+  throw new Error('Admin shift confirmations could not be loaded.');
+}
+
+setShiftConfirmations(
+  adminConfirmationData.confirmations || []
+);
 
     const loadedSubmissions = (adminData.submissions || []).map(
       submissionFromDb
@@ -3358,6 +3456,17 @@ return matchesDay && matchesDepartment && matchesStaffing;
 </button>
 
 <button
+  onClick={() => setActiveTab('confirmations')}
+  className={
+    activeTab === 'confirmations'
+      ? 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap bg-gradient-to-r from-[#7A5200] via-[#A87508] to-[#C99718] text-white shadow-md shadow-[#7A5200]/20 ring-1 ring-[#E2B84B]/40'
+      : 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap text-[#D4A017] dark:text-[#F4D06F] hover:bg-[#D4A017]/10 dark:hover:bg-slate-800'
+  }
+>
+  <Calendar className="w-4 h-4" /> Shift Confirmations
+</button>
+
+<button
   onClick={() => setActiveTab('ragGaps')}
   className={
     activeTab === 'ragGaps'
@@ -3376,6 +3485,159 @@ return matchesDay && matchesDepartment && matchesStaffing;
       {/* Main Content Body */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
 
+{/* SECTION: ADMIN SHIFT CONFIRMATIONS */}
+{isAdminLoggedIn && activeTab === 'confirmations' && (
+  <div className="max-w-7xl mx-auto space-y-6">
+
+    <div className="space-y-2">
+      <h2 className={`text-2xl font-black ${
+        darkMode ? 'text-white' : 'text-slate-900'
+      }`}>
+        Shift Confirmations
+      </h2>
+
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        View each sevak's response to their allocated shifts.
+      </p>
+    </div>
+
+    {shifts.map(shift => {
+      const assignedSevaks = submissions.filter(sevak =>
+        (sevak.assignedShifts || []).includes(shift.id)
+      );
+
+      if (assignedSevaks.length === 0) return null;
+
+      const confirmedCount = assignedSevaks.filter(sevak =>
+        shiftConfirmations.some(c =>
+          c.shift_id === shift.id &&
+          c.sevak_id === sevak.id &&
+          c.response_status === 'confirmed'
+        )
+      ).length;
+
+      const declinedCount = assignedSevaks.filter(sevak =>
+        shiftConfirmations.some(c =>
+          c.shift_id === shift.id &&
+          c.sevak_id === sevak.id &&
+          c.response_status === 'declined'
+        )
+      ).length;
+
+      const awaitingCount =
+        assignedSevaks.length - confirmedCount - declinedCount;
+
+      return (
+        <div
+          key={shift.id}
+          className={`rounded-2xl border p-5 space-y-4 ${
+            darkMode
+              ? 'bg-slate-900 border-slate-700'
+              : 'bg-white border-slate-200'
+          }`}
+        >
+          <div>
+            <h3 className={`font-bold text-lg ${
+              darkMode ? 'text-white' : 'text-slate-900'
+            }`}>
+              {shift.title || shift.department}
+            </h3>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {shift.department} · {shift.day} · {shift.timeSlot}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs font-bold">
+            <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700">
+              Confirmed: {confirmedCount}
+            </span>
+
+            <span className="px-3 py-1.5 rounded-full bg-red-100 text-red-700">
+              Declined: {declinedCount}
+            </span>
+
+            <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-700">
+              Awaiting: {awaitingCount}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {assignedSevaks.map(sevak => {
+              const response = shiftConfirmations.find(c =>
+                c.shift_id === shift.id &&
+                c.sevak_id === sevak.id
+              );
+
+              const status = response?.response_status;
+
+              const workingTime =
+                shift.assignedVolunteerTimes?.[sevak.id];
+
+              return (
+                <div
+                  key={sevak.id}
+                  className={`rounded-xl p-4 space-y-2 ${
+                    darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className={`font-bold text-sm ${
+                        darkMode ? 'text-white' : 'text-slate-900'
+                      }`}>
+                        {sevak.fullName || sevak.name || 'Unnamed sevak'}
+                      </p>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        SID: {sevak.sid || sevak.id}
+                      </p>
+                    </div>
+
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                      status === 'confirmed'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : status === 'declined'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {status === 'confirmed'
+                        ? 'Confirmed'
+                        : status === 'declined'
+                        ? 'Declined'
+                        : 'Awaiting response'}
+                    </span>
+                  </div>
+
+                  {workingTime && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Allocated hours: {workingTime}
+                    </p>
+                  )}
+
+                  {response?.requested_start || response?.requested_end ? (
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      Requested hours: {response.requested_start || 'No change'} – {response.requested_end || 'No change'}
+                    </p>
+                  ) : null}
+
+                  {response?.comment && (
+                    <div className="text-xs text-slate-600 dark:text-slate-300">
+                      <span className="font-bold">Comment: </span>
+                      {response.comment}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    })}
+
+  </div>
+)}
+        
 {/* SECTION 1: SEVAK PORTAL LOGIN & PERSONAL ROTA */}
 {activeTab === 'portal' && (
   <div className={`${!loggedInSevak ? 'max-w-4xl' : 'max-w-xl'} mx-auto space-y-6`}>
@@ -3554,6 +3816,15 @@ return matchesDay && matchesDepartment && matchesStaffing;
                         <CheckCircle className="w-3.5 h-3.5" /> Confirmed Rota
                       </span>
                     </h3>
+                    {confirmationMessage && (
+  <div className={`p-3 rounded-xl text-xs font-semibold ${
+    confirmationMessage.includes('successfully')
+      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+      : 'bg-red-500/10 text-red-700 dark:text-red-400'
+  }`}>
+    {confirmationMessage}
+  </div>
+)}
 
                     {loggedInSevak.assignedShifts.length === 0 ? (
                       <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 text-center space-y-2">
@@ -3605,8 +3876,17 @@ return matchesDay && matchesDepartment && matchesStaffing;
                           const deptContact = DEPARTMENT_LEADS[shift.department];
                         const deptLeadName = deptContact?.[getSevakGroup(loggedInSevak)];
                         const personalWorkingTime =
-                          shift.assignedVolunteerTimes?.[loggedInSevak.id];
-                          const dayObj = DAYS.find(d => d.id === shift.day);
+  shift.assignedVolunteerTimes?.[loggedInSevak.id];
+
+const shiftConfirmation = shiftConfirmations.find(
+  c =>
+    c.shift_id === shift.id &&
+    c.sevak_id === loggedInSevak.id
+);
+
+const confirmationDraft = confirmationDrafts[shift.id] || {};
+
+const dayObj = DAYS.find(d => d.id === shift.day);
 
                           return (
                             <div
@@ -3663,6 +3943,111 @@ return matchesDay && matchesDepartment && matchesStaffing;
                                   </div>
                                 </div>
                               )}
+                              {/* Individual Shift Confirmation */}
+<div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-3">
+  <div className="flex items-center justify-between gap-2">
+    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+      Your availability
+    </span>
+
+    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+      shiftConfirmation?.response_status === 'confirmed'
+        ? 'bg-emerald-100 text-emerald-700'
+        : shiftConfirmation?.response_status === 'declined'
+        ? 'bg-red-100 text-red-700'
+        : 'bg-amber-100 text-amber-700'
+    }`}>
+      {shiftConfirmation?.response_status === 'confirmed'
+        ? 'Confirmed'
+        : shiftConfirmation?.response_status === 'declined'
+        ? 'Declined'
+        : 'Awaiting response'}
+    </span>
+  </div>
+
+  <textarea
+    value={confirmationDraft.comment ?? shiftConfirmation?.comment ?? ''}
+    onChange={e =>
+      setConfirmationDrafts(prev => ({
+        ...prev,
+        [shift.id]: {
+          ...prev[shift.id],
+          comment: e.target.value
+        }
+      }))
+    }
+    placeholder="Add a comment (e.g. reason for declining)..."
+    rows={2}
+    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-xs text-slate-800 dark:text-white outline-none focus:border-amber-500"
+  />
+    <div className="space-y-2">
+    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+      Request different working hours (optional)
+    </p>
+
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className="block text-[11px] text-slate-500 mb-1">
+          Requested start
+        </label>
+        <input
+          type="time"
+          value={confirmationDraft.requestedStart ?? shiftConfirmation?.requested_start ?? ''}
+          onChange={e =>
+            setConfirmationDrafts(prev => ({
+              ...prev,
+              [shift.id]: {
+                ...prev[shift.id],
+                requestedStart: e.target.value
+              }
+            }))
+          }
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-xs text-slate-800 dark:text-white"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[11px] text-slate-500 mb-1">
+          Requested finish
+        </label>
+        <input
+          type="time"
+          value={confirmationDraft.requestedEnd ?? shiftConfirmation?.requested_end ?? ''}
+          onChange={e =>
+            setConfirmationDrafts(prev => ({
+              ...prev,
+              [shift.id]: {
+                ...prev[shift.id],
+                requestedEnd: e.target.value
+              }
+            }))
+          }
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-xs text-slate-800 dark:text-white"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-2 gap-2">
+    <button
+      type="button"
+      disabled={savingConfirmationId === shift.id}
+      onClick={() => handleSaveShiftConfirmation(shift.id, 'confirmed')}
+      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold py-2.5"
+    >
+      {savingConfirmationId === shift.id ? 'Saving...' : 'Confirm shift'}
+    </button>
+
+    <button
+      type="button"
+      disabled={savingConfirmationId === shift.id}
+      onClick={() => handleSaveShiftConfirmation(shift.id, 'declined')}
+      className="rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold py-2.50000"
+    >
+      {savingConfirmationId === shift.id ? 'Saving...' : 'Decline shift'}
+    </button>
+  </div>
+</div>
                             </div>
                           );
                         })}
