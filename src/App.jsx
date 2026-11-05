@@ -2369,7 +2369,6 @@ const handleUndoCheckInVolunteer = async (submissionId, shiftId) => {
               <tr>
                 <th>Volunteer</th>
                 <th>Working time</th>
-                <th>Role</th>
               </tr>
             </thead>
             <tbody>${volunteerRows}</tbody>
