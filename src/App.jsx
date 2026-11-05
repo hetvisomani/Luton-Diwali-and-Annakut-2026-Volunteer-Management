@@ -423,7 +423,7 @@ const [shiftConfirmations, setShiftConfirmations] = useState([]);
 const [confirmationDrafts, setConfirmationDrafts] = useState({});
 const [savingConfirmationId, setSavingConfirmationId] = useState('');
 const [confirmationMessage, setConfirmationMessage] = useState('');
-
+const [confirmationDepartmentFilter, setConfirmationDepartmentFilter] = useState('All Departments');
   // Admin password authentication state
 const [pendingAdminSid, setPendingAdminSid] = useState('');
 const [adminPassword, setAdminPassword] = useState('');
@@ -3499,9 +3499,41 @@ return matchesDay && matchesDepartment && matchesStaffing;
       <p className="text-sm text-slate-500 dark:text-slate-400">
         View each sevak's response to their allocated shifts.
       </p>
+      <div className="max-w-sm">
+  <label className={`block text-xs font-bold mb-2 ${
+    darkMode ? 'text-slate-300' : 'text-slate-600'
+  }`}>
+    Filter by department
+  </label>
+
+  <select
+    value={confirmationDepartmentFilter}
+    onChange={e => setConfirmationDepartmentFilter(e.target.value)}
+    className={`w-full rounded-xl border px-4 py-3 text-sm font-semibold outline-none ${
+      darkMode
+        ? 'bg-slate-800 border-slate-700 text-white'
+        : 'bg-white border-slate-200 text-slate-800'
+    }`}
+  >
+    <option value="All Departments">All Departments</option>
+
+    {[...new Set(shifts.map(shift => shift.department).filter(Boolean))]
+      .sort()
+      .map(department => (
+        <option key={department} value={department}>
+          {department}
+        </option>
+      ))}
+  </select>
+</div>
     </div>
 
-    {shifts.map(shift => {
+    {shifts
+  .filter(shift =>
+    confirmationDepartmentFilter === 'All Departments' ||
+    shift.department === confirmationDepartmentFilter
+  )
+  .map(shift => {
       const assignedSevaks = submissions.filter(sevak =>
         (sevak.assignedShifts || []).includes(shift.id)
       );
