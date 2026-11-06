@@ -5335,9 +5335,36 @@ const assignedUnknown = assignedNames.filter(
                             const sub = submissions.find(s => s.id === subId);
                             if (!sub) return null;
                             const isLead = shift.leadVolunteerId === sub.id;
-                            const volunteerWorkingTime =
-                              shift.assignedVolunteerTimes?.[sub.id];
-                            const checkedIn = shift.checkedInVolunteers?.[sub.id];
+                          const volunteerWorkingTime =
+  shift.assignedVolunteerTimes?.[sub.id];
+
+const masterWorkingTimeKey = `${shift.id}-${sub.id}`;
+const masterWorkingTimeDraft =
+  workingTimeDrafts[masterWorkingTimeKey] || {};
+
+const masterToTimeInput = (minutes) => {
+  if (minutes === null || minutes === undefined || minutes === '') {
+    return '';
+  }
+
+  const value = Number(minutes);
+  if (!Number.isFinite(value)) return '';
+
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
+
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+const masterStartValue =
+  masterWorkingTimeDraft.start ??
+  masterToTimeInput(volunteerWorkingTime?.start);
+
+const masterEndValue =
+  masterWorkingTimeDraft.end ??
+  masterToTimeInput(volunteerWorkingTime?.end);
+
+const checkedIn = shift.checkedInVolunteers?.[sub.id];
 
                             return (
                               <div
@@ -5348,30 +5375,88 @@ const assignedUnknown = assignedNames.filter(
                                     : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                                 }`}
                               >
-                                <div className="flex items-center gap-1.5 truncate">
-                                  <button
-                                    onClick={() => toggleLeadVolunteer(shift.id, sub.id)}
-                                    title="Toggle Team Lead"
-                                    className={`p-1 rounded-md ${
-                                      isLead ? 'bg-amber-500 text-white' : 'text-slate-300 hover:text-amber-500'
-                                    }`}
-                                  >
-                                    <Crown className="w-3 h-3" />
-                                  </button>
-                                  <span
-  className={`font-bold ${
-    darkMode ? 'text-white' : 'text-slate-900'
-  }`}
->
-  {sub.fullName}
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+  <button
+    onClick={() => toggleLeadVolunteer(shift.id, sub.id)}
+    title="Toggle Team Lead"
+    className={`p-1 rounded-md shrink-0 ${
+      isLead
+        ? 'bg-amber-500 text-white'
+        : 'text-slate-300 hover:text-amber-500'
+    }`}
+  >
+    <Crown className="w-3 h-3" />
+  </button>
 
-  {volunteerWorkingTime && (
-    <span className="ml-2 font-medium text-[10px] text-emerald-600 dark:text-emerald-400">
-      ({formatTimelineTime(volunteerWorkingTime.start)}–{formatTimelineTime(volunteerWorkingTime.end)})
-    </span>
-  )}
-</span>
-                                </div>
+  <div className="min-w-0 flex-1 space-y-1">
+    <div className={`font-bold truncate ${
+      darkMode ? 'text-white' : 'text-slate-900'
+    }`}>
+      {sub.fullName}
+      {isLead && (
+        <span className="ml-1 text-[9px] text-amber-600">
+          TEAM LEADER
+        </span>
+      )}
+    </div>
+
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <label className="text-[9px] text-slate-500">
+        From
+      </label>
+      <input
+        type="time"
+        value={masterStartValue}
+        onChange={e =>
+          setWorkingTimeDrafts(prev => ({
+            ...prev,
+            [masterWorkingTimeKey]: {
+              ...prev[masterWorkingTimeKey],
+              start: e.target.value
+            }
+          }))
+        }
+        className="w-[105px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 py-1 text-[10px] text-slate-800 dark:text-white"
+      />
+
+      <label className="text-[9px] text-slate-500">
+        To
+      </label>
+      <input
+        type="time"
+        value={masterEndValue}
+        onChange={e =>
+          setWorkingTimeDrafts(prev => ({
+            ...prev,
+            [masterWorkingTimeKey]: {
+              ...prev[masterWorkingTimeKey],
+              end: e.target.value
+            }
+          }))
+        }
+        className="w-[105px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 py-1 text-[10px] text-slate-800 dark:text-white"
+      />
+
+      <button
+        type="button"
+        disabled={savingWorkingTimeId === masterWorkingTimeKey}
+        onClick={() =>
+          handleSaveWorkingTime(
+            shift.id,
+            sub.id,
+            masterStartValue,
+            masterEndValue
+          )
+        }
+        className="rounded-md bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-2 py-1 text-[9px] font-bold"
+      >
+        {savingWorkingTimeId === masterWorkingTimeKey
+          ? 'Saving...'
+          : 'Save'}
+      </button>
+    </div>
+  </div>
+</div>
 
                                 <div className="flex items-center gap-2 shrink-0">
 
