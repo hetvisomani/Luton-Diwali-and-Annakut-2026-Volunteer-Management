@@ -424,6 +424,10 @@ const [confirmationDrafts, setConfirmationDrafts] = useState({});
 const [savingConfirmationId, setSavingConfirmationId] = useState('');
 const [confirmationMessage, setConfirmationMessage] = useState('');
 const [confirmationDepartmentFilter, setConfirmationDepartmentFilter] = useState('All Departments');
+  // Admin manual working-time editor
+const [workingTimeDrafts, setWorkingTimeDrafts] = useState({});
+const [savingWorkingTimeId, setSavingWorkingTimeId] = useState('');
+const [workingTimeMessage, setWorkingTimeMessage] = useState('');
   // Admin password authentication state
 const [pendingAdminSid, setPendingAdminSid] = useState('');
 const [adminPassword, setAdminPassword] = useState('');
@@ -1572,6 +1576,72 @@ const handleSaveShiftConfirmation = async (shiftId, responseStatus) => {
   }
 };
 
+// Save an admin-edited individual working time
+const handleSaveWorkingTime = async (shiftId, sevakId, start, end) => {
+  if (!loggedInSevak?.isAdmin) return;
+
+  if (!start || !end) {
+    setWorkingTimeMessage('Please enter both a start and finish time.');
+    return;
+  }
+  const startMinutes =
+  Number(start.split(':')[0]) * 60 +
+  Number(start.split(':')[1]);
+
+const endMinutes =
+  Number(end.split(':')[0]) * 60 +
+  Number(end.split(':')[1]);
+
+if (endMinutes <= startMinutes) {
+  setWorkingTimeMessage('Finish time must be later than start time.');
+  return;
+}
+
+  setSavingWorkingTimeId(`${shiftId}-${sevakId}`);
+  setWorkingTimeMessage('');
+
+  try {
+   const { data, error } = await supabase.rpc(
+  'admin_save_volunteer_shift_time',
+  {
+    input_admin_sid: loggedInSevak.sid,
+    input_submission_id: sevakId,
+    input_shift_id: shiftId,
+    input_start: startMinutes,
+    input_end: endMinutes
+  }
+);
+
+    if (error) throw error;
+
+    if (!data?.success) {
+      throw new Error(
+        data?.message || 'Working hours could not be saved.'
+      );
+    }
+
+    await loadAdminData(loggedInSevak.sid);
+
+    const workingTimeKey = `${shiftId}-${sevakId}`;
+
+    setWorkingTimeDrafts(prev => {
+      const next = { ...prev };
+      delete next[workingTimeKey];
+      return next;
+    });
+
+    setWorkingTimeMessage('Working hours updated successfully.');
+
+  } catch (error) {
+    console.error('Manual working-time save failed:', error);
+    setWorkingTimeMessage(
+      'Unable to update working hours. Please try again.'
+    );
+  } finally {
+    setSavingWorkingTimeId('');
+  }
+};
+
   const handleAdminPasswordLogin = async (e) => {
   e.preventDefault();
 
@@ -1751,6 +1821,8 @@ setShiftConfirmations(
 
     // Calculate the individual's actual working hours.
     const workingTime = getManualWorkingTime(submission, shift);
+  
+
 
     // STEP 1: Save the assignment.
     const { data, error } = await supabase.rpc(
@@ -3498,6 +3570,17 @@ return matchesDay && matchesDepartment && matchesStaffing;
       <p className="text-sm text-slate-500 dark:text-slate-400">
         View each sevak's response to their allocated shifts.
       </p>
+      
+{workingTimeMessage && (
+  <div className={`p-3 rounded-xl text-xs font-semibold ${
+    workingTimeMessage.includes('successfully')
+      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+      : 'bg-red-500/10 text-red-700 dark:text-red-400'
+  }`}>
+    {workingTimeMessage}
+  </div>
+)}
+
       <div className="max-w-sm">
   <label className={`block text-xs font-bold mb-2 ${
     darkMode ? 'text-slate-300' : 'text-slate-600'
@@ -3604,6 +3687,28 @@ return matchesDay && matchesDepartment && matchesStaffing;
 
               const workingTime =
                 shift.assignedVolunteerTimes?.[sevak.id];
+          const workingTimeKey = `${shift.id}-${sevak.id}`;
+const workingTimeDraft = workingTimeDrafts[workingTimeKey] || {};
+
+const toTimeInput = (minutes) => {
+  if (minutes === null || minutes === undefined || minutes === '') {
+    return '';
+  }
+
+  const value = Number(minutes);
+  if (!Number.isFinite(value)) return '';
+
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
+
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+const startValue =
+  workingTimeDraft.start ?? toTimeInput(workingTime?.start);
+
+const endValue =
+  workingTimeDraft.end ?? toTimeInput(workingTime?.end);
 
               return (
                 <div
@@ -3640,11 +3745,73 @@ return matchesDay && matchesDepartment && matchesStaffing;
                     </span>
                   </div>
 
-                  {workingTime && (
-  <p className="text-xs text-slate-500 dark:text-slate-400">
-    Allocated hours: {workingTime.start} – {workingTime.end}
+                
+<div className="space-y-3 rounded-xl border border-amber-200 dark:border-slate-700 p-3">
+  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+    Individual working hours
   </p>
-)}
+
+  <div className="grid grid-cols-2 gap-3">
+    <div>
+      <label className="block text-[11px] text-slate-500 mb-1">
+        Start time
+      </label>
+      <input
+        type="time"
+        value={startValue}
+        onChange={e =>
+          setWorkingTimeDrafts(prev => ({
+            ...prev,
+            [workingTimeKey]: {
+              ...prev[workingTimeKey],
+              start: e.target.value
+            }
+          }))
+        }
+        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-xs text-slate-800 dark:text-white"
+      />
+    </div>
+
+    <div>
+      <label className="block text-[11px] text-slate-500 mb-1">
+        Finish time
+      </label>
+      <input
+        type="time"
+        value={endValue}
+        onChange={e =>
+          setWorkingTimeDrafts(prev => ({
+            ...prev,
+            [workingTimeKey]: {
+              ...prev[workingTimeKey],
+              end: e.target.value
+            }
+          }))
+        }
+        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-xs text-slate-800 dark:text-white"
+      />
+    </div>
+  </div>
+
+  <button
+    type="button"
+    disabled={savingWorkingTimeId === workingTimeKey}
+    onClick={() =>
+      handleSaveWorkingTime(
+        shift.id,
+        sevak.id,
+        startValue,
+        endValue
+      )
+    }
+    className="w-full rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold py-2.5"
+  >
+    {savingWorkingTimeId === workingTimeKey
+      ? 'Saving...'
+      : 'Save working hours'}
+  </button>
+</div>
+
 
                   {response?.requested_start || response?.requested_end ? (
                     <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
