@@ -4854,6 +4854,32 @@ const assignedUnknown = assignedNames.filter(
                       const renderAssignedVolunteer = (sub) => {
   const volunteerWorkingTime =
     shift.assignedVolunteerTimes?.[sub.id];
+                        const departmentWorkingTimeKey = `${shift.id}-${sub.id}`;
+
+const departmentWorkingTimeDraft =
+  workingTimeDrafts[departmentWorkingTimeKey] || {};
+
+const departmentToTimeInput = (minutes) => {
+  if (minutes === null || minutes === undefined || minutes === '') {
+    return '';
+  }
+
+  const value = Number(minutes);
+  if (!Number.isFinite(value)) return '';
+
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
+
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+const departmentStartValue =
+  departmentWorkingTimeDraft.start ??
+  departmentToTimeInput(volunteerWorkingTime?.start);
+
+const departmentEndValue =
+  departmentWorkingTimeDraft.end ??
+  departmentToTimeInput(volunteerWorkingTime?.end);
 
   const rotaTime = parseShiftTime(shift.timeSlot);
 
@@ -4907,14 +4933,71 @@ const assignedUnknown = assignedNames.filter(
         </div>
       </div>
 
-      {hasDifferentWorkingTime && (
-        <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-          <Clock className="w-3 h-3 inline mr-1" />
-          {formatTimelineTime(volunteerWorkingTime.start)}
-          {' – '}
-          {formatTimelineTime(volunteerWorkingTime.end)}
-        </p>
-      )}
+      <div className="space-y-2 border-t border-slate-200 dark:border-slate-700 pt-2">
+  <p className="text-[10px] font-bold text-slate-500">
+    INDIVIDUAL WORKING HOURS
+  </p>
+
+  <div className="flex items-center gap-2">
+    <div className="flex-1 min-w-0">
+      <label className="block text-[9px] text-slate-500 mb-1">
+        Start
+      </label>
+      <input
+        type="time"
+        value={departmentStartValue}
+        onChange={e =>
+          setWorkingTimeDrafts(prev => ({
+            ...prev,
+            [departmentWorkingTimeKey]: {
+              ...prev[departmentWorkingTimeKey],
+              start: e.target.value
+            }
+          }))
+        }
+        className="w-full min-w-0 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 p-1.5 text-[10px] text-slate-800 dark:text-white"
+      />
+    </div>
+
+    <div className="flex-1 min-w-0">
+      <label className="block text-[9px] text-slate-500 mb-1">
+        Finish
+      </label>
+      <input
+        type="time"
+        value={departmentEndValue}
+        onChange={e =>
+          setWorkingTimeDrafts(prev => ({
+            ...prev,
+            [departmentWorkingTimeKey]: {
+              ...prev[departmentWorkingTimeKey],
+              end: e.target.value
+            }
+          }))
+        }
+        className="w-full min-w-0 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 p-1.5 text-[10px] text-slate-800 dark:text-white"
+      />
+    </div>
+  </div>
+
+  <button
+    type="button"
+    disabled={savingWorkingTimeId === departmentWorkingTimeKey}
+    onClick={() =>
+      handleSaveWorkingTime(
+        shift.id,
+        sub.id,
+        departmentStartValue,
+        departmentEndValue
+      )
+    }
+    className="w-full rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white py-1.5 text-[10px] font-bold"
+  >
+    {savingWorkingTimeId === departmentWorkingTimeKey
+      ? 'Saving...'
+      : 'Save working hours'}
+  </button>
+</div>
 
       <div className="flex items-center justify-between gap-2">
         {checkedIn ? (
