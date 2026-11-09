@@ -50,6 +50,7 @@ const DEPARTMENTS = [
   "Crèche",
   "Catering Kitchen",
   "Food Stalls",
+  "Kishori Seva"
   "Volunteer Management"
 ];
 
